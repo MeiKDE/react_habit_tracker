@@ -20,7 +20,7 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
     } else if (user && inAuthGroup && !isLoadingUser) {
       router.replace("/");
     }
-  }, [user, segments]);
+  }, [user, segments, isLoadingUser, router]);
 
   return <>{children}</>;
 }
