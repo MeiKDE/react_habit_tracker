@@ -145,6 +145,7 @@ export default function Index() {
   const isHabitCompleted = (habitId: string) =>
     completedHabits?.includes(habitId);
 
+  //Swipe from right
   const renderRightActions = (habitId: string) => (
     <View className="justify-center items-end flex-1 bg-green-500 rounded-[18px] mb-4.5 mt-0.5 pr-4">
       {isHabitCompleted(habitId) ? (
@@ -159,6 +160,7 @@ export default function Index() {
     </View>
   );
 
+  //Swipe from left
   const renderLeftActions = () => (
     <View className="justify-center items-start flex-1 bg-red-600 rounded-[18px] mb-4.5 mt-0.5 pl-4">
       <MaterialCommunityIcons
