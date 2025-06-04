@@ -5,20 +5,29 @@
 export const getApiUrl = (): string => {
   if (__DEV__) {
     // Development configuration
-    // Choose the appropriate option based on your setup:
+    // IMPORTANT: Choose the correct option based on your setup:
+
+    // ===== CHOOSE ONE OF THE FOLLOWING OPTIONS =====
 
     // Option 1: iOS Simulator (uncomment if using iOS simulator)
-    // return "http://localhost:3000/api";
+    return "http://localhost:3000/api";
 
     // Option 2: Android Emulator (uncomment if using Android emulator)
     // return "http://10.0.2.2:3000/api";
 
-    // Option 3: Physical Device (currently active - your network IP)
-    return "http://192.168.1.106:3000/api";
+    // Option 3: Physical Device or Expo Go (uncomment if using physical device)
+    // return "http://192.168.1.106:3000/api";
 
-    // Option 4: Network IP (this is the same as Option 3 above)
-    // Get your IP with: npx react-native-get-ip or ipconfig/ifconfig
-    // return "http://YOUR_IP_ADDRESS:3000/api";
+    // Option 4: Expo Tunnel (uncomment if using expo start --tunnel)
+    // return "http://192.168.1.106:3000/api";
+
+    // ===== END OPTIONS =====
+
+    // Note: If you're still getting "Failed to fetch" errors:
+    // 1. For iOS Simulator, use localhost
+    // 2. For Android Emulator, use 10.0.2.2
+    // 3. For Physical Device, use your computer's IP (run: npm run get-ip)
+    // 4. Make sure your Next.js server is running: cd ../nextjs-habit-tracker && npm run dev
   } else {
     // Production configuration
     // Replace with your actual production API URL
@@ -66,3 +75,12 @@ export const API_CONFIG = {
     "Content-Type": "application/json",
   },
 } as const;
+
+// Debug function to log current configuration
+export const logApiConfig = () => {
+  console.log("[API CONFIG] Current API URL:", getApiUrl());
+  console.log(
+    "[API CONFIG] Full signin URL:",
+    `${getApiUrl()}${API_ENDPOINTS.AUTH.SIGN_IN}`
+  );
+};
