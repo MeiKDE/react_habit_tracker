@@ -1,5 +1,5 @@
 import { useAuth } from "@/lib/auth-context";
-import { HabitsAPI, Habit, HabitCompletion } from "@/lib/habits-api";
+import { useHabits } from "@/lib/habits-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
@@ -8,38 +8,30 @@ import { Button, Surface, Text } from "react-native-paper";
 
 export default function Index() {
   const { signOut, user } = useAuth();
-  const [habits, setHabits] = useState<Habit[]>([]);
-  const [completedHabits, setCompletedHabits] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const {
+    habits,
+    loading,
+    error,
+    deleteHabit,
+    completeHabit,
+    getTodayCompletions,
+    refreshHabits,
+  } = useHabits();
 
+  const [completedHabits, setCompletedHabits] = useState<string[]>([]);
   const swipeableRefs = useRef<{ [key: string]: Swipeable | null }>({});
 
   useEffect(() => {
     if (user) {
-      fetchHabits();
       fetchTodayCompletions();
     }
-  }, [user]);
-
-  const fetchHabits = async () => {
-    if (!user) return;
-
-    try {
-      setLoading(true);
-      const fetchedHabits = await HabitsAPI.getUserHabits();
-      setHabits(fetchedHabits);
-    } catch (error) {
-      console.error("Error fetching habits:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [user, habits]);
 
   const fetchTodayCompletions = async () => {
     if (!user) return;
 
     try {
-      const completions = await HabitsAPI.getTodayCompletions();
+      const completions = await getTodayCompletions();
       setCompletedHabits(completions.map((c) => c.habitId));
     } catch (error) {
       console.error("Error fetching completions:", error);
@@ -48,9 +40,7 @@ export default function Index() {
 
   const handleDeleteHabit = async (id: string) => {
     try {
-      await HabitsAPI.deleteHabit(id);
-      // Refresh habits list
-      fetchHabits();
+      await deleteHabit(id);
     } catch (error) {
       console.error("Error deleting habit:", error);
     }
@@ -60,14 +50,9 @@ export default function Index() {
     if (!user || completedHabits?.includes(id)) return;
 
     try {
-      await HabitsAPI.createCompletion({
-        habitId: id,
-        completedAt: new Date().toISOString(),
-      });
-
-      // Refresh both habits and completions
-      fetchHabits();
-      fetchTodayCompletions();
+      await completeHabit(id);
+      // Refresh completions after completing a habit
+      await fetchTodayCompletions();
     } catch (error) {
       console.error("Error completing habit:", error);
     }
@@ -112,6 +97,15 @@ export default function Index() {
           Sign Out
         </Button>
       </View>
+
+      {error && (
+        <View className="mb-4 p-3 bg-red-100 rounded-lg">
+          <Text className="text-red-700">{error}</Text>
+          <Button mode="text" onPress={refreshHabits} className="mt-2">
+            Retry
+          </Button>
+        </View>
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {loading ? (

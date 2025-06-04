@@ -1,5 +1,12 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { STORAGE_KEYS } from "../config/api";
+import {
+  ApiClient,
+  SignUpData,
+  SignInData,
+  User as RemoteUser,
+} from "./api-client";
 
 type User = {
   id: string;
@@ -18,12 +25,11 @@ type AuthContextType = {
   ) => Promise<string | null>;
   signIn: (email: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
+  isUsingRemoteAuth: boolean;
+  setUseRemoteAuth: (useRemote: boolean) => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const CURRENT_USER_KEY = "@current_user";
-const USERS_STORAGE_KEY = "@users";
 
 // Helper function to generate simple IDs
 const generateUserId = (): string => {
@@ -32,17 +38,48 @@ const generateUserId = (): string => {
   );
 };
 
+// Helper function to convert remote user to local user
+function convertRemoteToLocalUser(remoteUser: RemoteUser): User {
+  return {
+    id: remoteUser.id,
+    email: remoteUser.email,
+    username: remoteUser.username,
+    name: remoteUser.name,
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState<boolean>(true);
+  const [isUsingRemoteAuth, setIsUsingRemoteAuth] = useState<boolean>(true);
 
   useEffect(() => {
-    getCurrentUser();
+    initializeAuth();
   }, []);
+
+  const initializeAuth = async () => {
+    try {
+      // Check if we should use remote auth
+      const useRemoteAuthSetting = await AsyncStorage.getItem(
+        STORAGE_KEYS.USE_REMOTE_AUTH
+      );
+      const shouldUseRemote = useRemoteAuthSetting !== "false"; // Default to true
+      setIsUsingRemoteAuth(shouldUseRemote);
+
+      // Get current user
+      await getCurrentUser();
+    } catch (error) {
+      console.error("Error initializing auth:", error);
+    } finally {
+      setIsLoadingUser(false);
+    }
+  };
 
   const getCurrentUser = async () => {
     try {
-      const currentUserJson = await AsyncStorage.getItem(CURRENT_USER_KEY);
+      const currentUserJson = await AsyncStorage.getItem(
+        STORAGE_KEYS.CURRENT_USER
+      );
 
       if (currentUserJson) {
         const currentUser = JSON.parse(currentUserJson);
@@ -50,15 +87,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("Get user error:", error);
-    } finally {
-      setIsLoadingUser(false);
+    }
+  };
+
+  const setUseRemoteAuth = async (useRemote: boolean) => {
+    try {
+      setIsUsingRemoteAuth(useRemote);
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.USE_REMOTE_AUTH,
+        useRemote.toString()
+      );
+
+      // If switching to remote auth, clear local session
+      if (useRemote && user) {
+        await signOut();
+      }
+    } catch (error) {
+      console.error("Error setting remote auth preference:", error);
     }
   };
 
   const signUp = async (email: string, password: string, username: string) => {
+    if (isUsingRemoteAuth) {
+      try {
+        const signUpData: SignUpData = {
+          email,
+          password,
+          username,
+          name: username,
+        };
+
+        const response = await ApiClient.signUp(signUpData);
+
+        if (response.success && response.data) {
+          const localUser = convertRemoteToLocalUser(response.data);
+          await AsyncStorage.setItem(
+            STORAGE_KEYS.CURRENT_USER,
+            JSON.stringify(localUser)
+          );
+          setUser(localUser);
+          return null;
+        }
+
+        return response.error || "Failed to sign up";
+      } catch (error) {
+        console.warn(
+          "Remote signup failed, falling back to local auth:",
+          error
+        );
+        // Fall back to local auth
+        return await signUpLocal(email, password, username);
+      }
+    }
+
+    return await signUpLocal(email, password, username);
+  };
+
+  const signUpLocal = async (
+    email: string,
+    password: string,
+    username: string
+  ) => {
     try {
       // Get existing users
-      const usersJson = await AsyncStorage.getItem(USERS_STORAGE_KEY);
+      const usersJson = await AsyncStorage.getItem(STORAGE_KEYS.USERS_LOCAL);
       const users = usersJson ? JSON.parse(usersJson) : [];
 
       // Check if user already exists
@@ -80,66 +172,114 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Store user credentials (in a real app, you'd hash the password)
       const userWithPassword = { ...newUser, password };
       users.push(userWithPassword);
-      await AsyncStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.USERS_LOCAL,
+        JSON.stringify(users)
+      );
 
       // Set as current user
-      await AsyncStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.CURRENT_USER,
+        JSON.stringify(newUser)
+      );
       setUser(newUser);
 
       return null;
     } catch (error) {
-      console.error("Signup error:", error);
+      console.error("Local signup error:", error);
       return "An error occurred during signup";
     }
   };
 
   const signIn = async (email: string, password: string) => {
+    if (isUsingRemoteAuth) {
+      try {
+        const signInData: SignInData = {
+          email,
+          password,
+        };
+
+        const response = await ApiClient.signIn(signInData);
+
+        if (response.success && response.data) {
+          const localUser = convertRemoteToLocalUser(response.data.user);
+          await AsyncStorage.setItem(
+            STORAGE_KEYS.CURRENT_USER,
+            JSON.stringify(localUser)
+          );
+          setUser(localUser);
+          return null;
+        }
+
+        return response.error || "Failed to sign in";
+      } catch (error) {
+        console.warn(
+          "Remote signin failed, falling back to local auth:",
+          error
+        );
+        // Fall back to local auth
+        return await signInLocal(email, password);
+      }
+    }
+
+    return await signInLocal(email, password);
+  };
+
+  const signInLocal = async (email: string, password: string) => {
     try {
       // Get existing users
-      const usersJson = await AsyncStorage.getItem(USERS_STORAGE_KEY);
+      const usersJson = await AsyncStorage.getItem(STORAGE_KEYS.USERS_LOCAL);
       const users = usersJson ? JSON.parse(usersJson) : [];
 
-      // Find user by email or username and check password
-      const foundUser = users.find(
+      // Find user by email or username
+      const user = users.find(
         (u: any) =>
           (u.email === email || u.username === email) && u.password === password
       );
 
-      if (!foundUser) {
+      if (!user) {
         return "Invalid email/username or password";
       }
 
-      // Remove password from user object before setting
-      const { password: _, ...userWithoutPassword } = foundUser;
-
-      // Set as current user
+      // Remove password from user object before storing
+      const { password: _, ...userWithoutPassword } = user;
       await AsyncStorage.setItem(
-        CURRENT_USER_KEY,
+        STORAGE_KEYS.CURRENT_USER,
         JSON.stringify(userWithoutPassword)
       );
       setUser(userWithoutPassword);
 
       return null;
     } catch (error) {
-      console.error("Signin error:", error);
-      return "An error occurred during sign in";
+      console.error("Local signin error:", error);
+      return "An error occurred during signin";
     }
   };
 
   const signOut = async () => {
     try {
-      await AsyncStorage.removeItem(CURRENT_USER_KEY);
+      // Clear remote session
+      await ApiClient.signOut();
+
+      // Clear local storage
+      await AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
       setUser(null);
     } catch (error) {
-      console.error("Signout error:", error);
-      // Even if there's an error, we should still clear the user state
-      setUser(null);
+      console.error("Sign out error:", error);
     }
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoadingUser, signUp, signIn, signOut }}
+      value={{
+        user,
+        isLoadingUser,
+        signUp,
+        signIn,
+        signOut,
+        isUsingRemoteAuth,
+        setUseRemoteAuth,
+      }}
     >
       {children}
     </AuthContext.Provider>
@@ -149,8 +289,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be inside of the AuthProvider");
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-
   return context;
 }

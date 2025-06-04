@@ -1,5 +1,5 @@
 import { useAuth } from "@/lib/auth-context";
-import { HabitsAPI } from "@/lib/habits-api";
+import { useHabits } from "@/lib/habits-context";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
@@ -21,6 +21,7 @@ export default function AddHabitScreen() {
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const { user } = useAuth();
+  const { createHabit } = useHabits();
   const router = useRouter();
   const theme = useTheme();
 
@@ -31,13 +32,13 @@ export default function AddHabitScreen() {
     setError("");
 
     try {
-      const createdHabit = await HabitsAPI.createHabit({
+      await createHabit({
         title,
         description,
         frequency: frequency.toUpperCase() as "DAILY" | "WEEKLY" | "MONTHLY",
       });
 
-      console.log("Habit created:", createdHabit);
+      console.log("Habit created successfully");
       router.back();
     } catch (error) {
       if (error instanceof Error) {

@@ -1,226 +1,217 @@
-# Build a Habit Tracker App with React Native
+# React Native Habit Tracker
 
-<div align="center">
-  <br />
-    <a href="https://youtu.be/your-video-link" target="_blank">
-      <img src="https://github.com/your-username/your-repo/assets/your-asset-id/your-image.png" alt="Project Banner">
-    </a>
-  <br />
+A cross-platform habit tracking app built with React Native and Expo, designed to work with a shared Next.js backend.
 
-  <div>
-    <img src="https://img.shields.io/badge/-React_Native-black?style=for-the-badge&logoColor=white&logo=react&color=61DAFB" alt="React Native" />
-    <img src="https://img.shields.io/badge/-Expo-black?style=for-the-badge&logoColor=white&logo=expo&color=000020" alt="Expo" />
-    <img src="https://img.shields.io/badge/-TypeScript-black?style=for-the-badge&logoColor=white&logo=typescript&color=3178C6" alt="TypeScript" />
-    <img src="https://img.shields.io/badge/-Tailwind_CSS-black?style=for-the-badge&logoColor=white&logo=tailwindcss&color=06B6D4" alt="TailwindCSS" />
-  </div>
+## Features
 
-  <h3 align="center">Build a Habit Tracker App with React Native and TailwindCSS</h3>
+- 📱 Cross-platform (iOS, Android, Web)
+- 🔐 User authentication with JWT tokens
+- 📊 Habit tracking with streaks
+- 🎯 Daily, weekly, and monthly habit frequencies
+- 🔄 Real-time sync with backend
+- 💾 Local storage fallback
+- 🌐 Shared data with Next.js web app
 
-   <div align="center">
-     A modern habit tracking app built with React Native, Expo, and TailwindCSS for local habit management.
-    </div>
-</div>
+## Backend Integration
 
-## <a name="introduction">🤖 Introduction</a>
+This React Native app is designed to work with the `nextjs-habit-tracker` backend, sharing the same database and user accounts.
 
-In this tutorial, you'll learn how to build a modern **Habit Tracker** app using **React Native**, **Expo**, and **TailwindCSS**. This app allows users to track their daily habits, view streaks, and manage habit completions with a sleek UI and local storage.
+### Quick Start with Backend
 
-## <a name="tech-stack">⚙️ Tech Stack</a>
+1. **Start both services together:**
 
-- **React Native** – Cross-platform mobile development
-- **Expo** – Development platform and tools
-- **TypeScript** – Type safety and better development experience
-- **TailwindCSS** – Utility-first CSS framework
-- **AsyncStorage** – Local data persistence
-- **React Navigation** – Navigation between screens
+   ```bash
+   npm run start-with-backend
+   ```
 
-## <a name="features">🔋 Features</a>
+2. **Or start manually:**
 
-👉 **Habit Management**: Create, edit, and delete habits with ease
+   ```bash
+   # Terminal 1: Start Next.js backend
+   cd ../nextjs-habit-tracker
+   npm run dev
 
-👉 **Daily Tracking**: Mark habits as complete for each day
+   # Terminal 2: Start React Native app
+   cd react-native-habit-tracker
+   npm start
+   ```
 
-👉 **Streak Tracking**: View your current streak for each habit
+### Network Configuration
 
-👉 **Local Storage**: All data is stored locally on your device
+The app automatically detects your development environment:
 
-👉 **User Authentication**: Simple local authentication system
+- **iOS Simulator**: Uses `localhost:3000`
+- **Android Emulator**: Use `10.0.2.2:3000` (update `config/api.ts`)
+- **Physical Device**: Use your computer's IP address
 
-👉 **Modern UI**: Clean and intuitive interface built with TailwindCSS
-
-👉 **Cross-Platform**: Works on both iOS and Android
-
-## <a name="quick-start">🤸 Quick Start</a>
-
-Follow these steps to set up the project locally on your machine.
-
-**Prerequisites**
-
-Make sure you have the following installed on your machine:
-
-- [Git](https://git-scm.com/)
-- [Node.js](https://nodejs.org/en)
-- [npm](https://www.npmjs.com/) (Node Package Manager)
-- [Expo CLI](https://docs.expo.dev/get-started/installation/)
-
-**Cloning the Repository**
+Get your IP address:
 
 ```bash
-git clone https://github.com/your-username/habit-tracker.git
-cd habit-tracker/react-native-habit-tracker
+npm run get-ip
 ```
 
-**Installation**
+### Connection Testing
 
-Install the project dependencies using npm:
+The app includes a built-in connection test:
 
-```bash
-npm install
-```
+1. Open the app
+2. On the auth screen, toggle "Show Connection Test"
+3. Tap "Test Connection" to verify backend connectivity
 
-**Running the Project**
+## Development Setup
 
-```bash
-npm start
-```
+### Prerequisites
 
-This will start the Expo development server. You can then:
+- Node.js 18+
+- Expo CLI
+- iOS Simulator (Mac) or Android Studio
+- Next.js habit tracker backend running
 
-- Press `i` to open iOS simulator
-- Press `a` to open Android emulator
-- Scan the QR code with Expo Go app on your phone
+### Installation
 
-## <a name="snippets">🕸️ Code Snippets</a>
+1. **Clone and install dependencies:**
 
-<details>
-<summary><code>lib/habits-storage.ts</code></summary>
+   ```bash
+   git clone <repository>
+   cd react-native-habit-tracker
+   npm install
+   ```
+
+2. **Start the development server:**
+
+   ```bash
+   npm start
+   ```
+
+3. **Run on device/simulator:**
+   ```bash
+   npm run ios     # iOS Simulator
+   npm run android # Android Emulator
+   npm run web     # Web browser
+   ```
+
+## Configuration
+
+### API Endpoints
+
+Update `config/api.ts` to configure the backend URL:
 
 ```typescript
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-export interface Habit {
-  id: string;
-  title: string;
-  description?: string;
-  color: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface HabitCompletion {
-  id: string;
-  habitId: string;
-  date: string;
-  createdAt: Date;
-}
-
-export class HabitsStorage {
-  private static HABITS_KEY = "@habits";
-  private static COMPLETIONS_KEY = "@habit_completions";
-
-  static async createHabit(data: CreateHabitData): Promise<Habit> {
-    const habits = await this.getUserHabits();
-    const newHabit: Habit = {
-      id: Date.now().toString(),
-      ...data,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    habits.push(newHabit);
-    await AsyncStorage.setItem(this.HABITS_KEY, JSON.stringify(habits));
-    return newHabit;
+export const getApiUrl = (): string => {
+  if (__DEV__) {
+    return "http://localhost:3000/api"; // iOS Simulator
+    // return 'http://10.0.2.2:3000/api';      // Android Emulator
+    // return 'http://YOUR_IP:3000/api';       // Physical Device
+  } else {
+    return "https://your-domain.com/api"; // Production
   }
-
-  static async getUserHabits(): Promise<Habit[]> {
-    try {
-      const habitsJson = await AsyncStorage.getItem(this.HABITS_KEY);
-      return habitsJson ? JSON.parse(habitsJson) : [];
-    } catch (error) {
-      console.error("Error getting habits:", error);
-      return [];
-    }
-  }
-}
+};
 ```
 
-</details>
+### Authentication Modes
 
-<details>
-<summary><code>lib/auth-context.tsx</code></summary>
+The app supports two authentication modes:
 
-```typescript
-import { createContext, useContext, useEffect, useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+1. **Remote Auth (Default)**: Uses the Next.js backend
+2. **Local Auth**: Stores data locally on the device
 
-type User = {
-  id: string;
-  email: string;
-  username: string;
-  name?: string;
-};
+Toggle between modes in the app settings or auth screen.
 
-type AuthContextType = {
-  user: User | null;
-  isLoadingUser: boolean;
-  signUp: (
-    email: string,
-    password: string,
-    username: string
-  ) => Promise<string | null>;
-  signIn: (email: string, password: string) => Promise<string | null>;
-  signOut: () => Promise<void>;
-};
+## Project Structure
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoadingUser, setIsLoadingUser] = useState<boolean>(true);
-
-  // Implementation details...
-}
+```
+react-native-habit-tracker/
+├── app/                    # App screens (Expo Router)
+│   ├── (tabs)/            # Tab navigation
+│   │   ├── index.tsx      # Main habits screen
+│   │   ├── add-habit.tsx  # Add new habit
+│   │   └── streaks.tsx    # Streaks view
+│   ├── auth.tsx           # Authentication screen
+│   └── _layout.tsx        # Root layout
+├── lib/                   # Core logic
+│   ├── auth-context.tsx   # Authentication context
+│   ├── habits-context.tsx # Habits management context
+│   ├── api-client.ts      # API client for backend
+│   └── habits-api.ts      # Habits API with fallback
+├── config/                # Configuration
+│   └── api.ts             # API endpoints and settings
+├── components/            # Reusable components
+│   └── ConnectionTest.tsx # Backend connection test
+└── scripts/               # Utility scripts
+    ├── get-ip.js          # Get local IP address
+    └── start-with-backend.sh # Start with backend
 ```
 
-</details>
+## API Integration
 
-## <a name="links">🔗 Links</a>
+The app integrates with the following Next.js API endpoints:
 
-- [React Native Documentation](https://reactnative.dev/docs/getting-started)
-- [Expo Documentation](https://docs.expo.dev/)
-- [TailwindCSS Documentation](https://tailwindcss.com/docs)
-- [AsyncStorage Documentation](https://react-native-async-storage.github.io/async-storage/)
+- `POST /api/auth/signup` - Create user account
+- `POST /api/auth/signin` - Sign in user
+- `GET /api/habits` - Get user's habits
+- `POST /api/habits` - Create new habit
+- `PUT /api/habits/[id]` - Update habit
+- `DELETE /api/habits/[id]` - Delete habit
+- `POST /api/habits/[id]/complete` - Mark habit complete
+- `GET /api/habits/[id]/completions` - Get completions
 
----
+## Troubleshooting
 
-## 🚀 Local Storage Implementation
+### Connection Issues
 
-This app uses AsyncStorage for local data persistence, providing a simple and effective way to store user data without requiring a backend server.
+1. **"Network request failed"**
 
-### Key Features:
+   - Ensure Next.js backend is running (`npm run dev`)
+   - Check API URL in `config/api.ts`
+   - Use connection test in the app
 
-1. **Local Data Storage**: All habits and completions are stored locally on the device
-2. **Offline Functionality**: Works completely offline
-3. **Simple Authentication**: Local user management system
-4. **Data Persistence**: Data persists between app sessions
+2. **Android Emulator Issues**
 
-### Data Structure:
+   - Use `10.0.2.2` instead of `localhost`
+   - Enable network access in emulator settings
 
-- **Habits**: Stored with unique IDs, titles, descriptions, and metadata
-- **Completions**: Track daily habit completions with date stamps
-- **User Data**: Simple local user authentication and profile management
+3. **Physical Device Issues**
+   - Use your computer's IP address
+   - Ensure both devices are on the same network
+   - Check firewall settings
 
-### Benefits:
+### Authentication Issues
 
-1. **No Backend Required**: Eliminates the need for server infrastructure
-2. **Privacy**: All data stays on the user's device
-3. **Performance**: Fast data access and updates
-4. **Simplicity**: Easy to implement and maintain
-5. **Offline First**: Works without internet connection
+1. **"Unauthorized" errors**
 
-### Technical Implementation:
+   - Clear app data and sign in again
+   - Check if backend is properly configured
+   - Verify JWT token storage
 
-- **Storage Layer**: AsyncStorage for React Native
-- **Data Models**: TypeScript interfaces for type safety
-- **Error Handling**: Comprehensive error handling for storage operations
-- **Data Migration**: Support for future data structure changes
+2. **User not found after signup**
+   - Check database connection in Next.js app
+   - Verify Prisma migrations are up to date
 
-This approach makes the app lightweight, private, and easy to deploy while providing all the core functionality needed for habit tracking.
+## Shared Features with Next.js App
+
+Both the React Native and Next.js apps share:
+
+- User accounts and authentication
+- Habit data and progress tracking
+- Real-time synchronization
+- Consistent data structure
+- Same backend API
+
+## Production Deployment
+
+1. Update production API URL in `config/api.ts`
+2. Build the app: `expo build`
+3. Deploy to app stores or web hosting
+4. Ensure backend is deployed and accessible
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test with both local and remote backends
+5. Submit a pull request
+
+## License
+
+MIT License - see LICENSE file for details

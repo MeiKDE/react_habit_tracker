@@ -1,5 +1,6 @@
 import React from "react";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { HabitsProvider } from "@/lib/habits-context";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -7,10 +8,13 @@ import { PaperProvider } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import "../global.css";
 
-// Suppress the pointerEvents deprecation warning from dependencies
+// Suppress deprecation warnings from dependencies
 import { LogBox } from "react-native";
 LogBox.ignoreLogs([
   "props.pointerEvents is deprecated. Use style.pointerEvents",
+  '"shadow*" style props are deprecated. Use "boxShadow"',
+  // Add any other warnings that might appear
+  "VirtualizedLists should never be nested",
 ]);
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
@@ -35,15 +39,20 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView className="flex-1">
       <AuthProvider>
-        <PaperProvider>
-          <SafeAreaProvider>
-            <RouteGuard>
-              <Stack>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              </Stack>
-            </RouteGuard>
-          </SafeAreaProvider>
-        </PaperProvider>
+        <HabitsProvider>
+          <PaperProvider>
+            <SafeAreaProvider>
+              <RouteGuard>
+                <Stack>
+                  <Stack.Screen
+                    name="(tabs)"
+                    options={{ headerShown: false }}
+                  />
+                </Stack>
+              </RouteGuard>
+            </SafeAreaProvider>
+          </PaperProvider>
+        </HabitsProvider>
       </AuthProvider>
     </GestureHandlerRootView>
   );
