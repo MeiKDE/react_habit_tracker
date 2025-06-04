@@ -6,8 +6,6 @@ type User = {
   email: string;
   username: string;
   name?: string;
-  createdAt: string;
-  updatedAt: string;
 };
 
 type AuthContextType = {
@@ -24,44 +22,34 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "";
+const CURRENT_USER_KEY = "@current_user";
+const USERS_STORAGE_KEY = "@users";
+
+// Helper function to generate simple IDs
+const generateUserId = (): string => {
+  return (
+    "user_" + Date.now().toString(36) + Math.random().toString(36).substr(2)
+  );
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState<boolean>(true);
 
   useEffect(() => {
-    getUser();
+    getCurrentUser();
   }, []);
 
-  const getUser = async () => {
+  const getCurrentUser = async () => {
     try {
-      const token = await AsyncStorage.getItem("@auth_token");
+      const currentUserJson = await AsyncStorage.getItem(CURRENT_USER_KEY);
 
-      if (!token) {
-        setUser(null);
-        return;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-      } else {
-        // Token is invalid, remove it
-        await AsyncStorage.removeItem("@auth_token");
-        setUser(null);
+      if (currentUserJson) {
+        const currentUser = JSON.parse(currentUserJson);
+        setUser(currentUser);
       }
     } catch (error) {
       console.error("Get user error:", error);
-      setUser(null);
     } finally {
       setIsLoadingUser(false);
     }
@@ -69,78 +57,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, username: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password, username }),
-      });
+      // Get existing users
+      const usersJson = await AsyncStorage.getItem(USERS_STORAGE_KEY);
+      const users = usersJson ? JSON.parse(usersJson) : [];
 
-      const data = await response.json();
-
-      if (response.ok) {
-        // Store token and set user
-        await AsyncStorage.setItem("@auth_token", data.token);
-        setUser(data.user);
-        return null;
-      } else {
-        return data.error || "An error occurred during signup";
+      // Check if user already exists
+      const existingUser = users.find(
+        (u: any) => u.email === email || u.username === username
+      );
+      if (existingUser) {
+        return "User with this email or username already exists";
       }
+
+      // Create new user
+      const newUser: User = {
+        id: generateUserId(),
+        email,
+        username,
+        name: username,
+      };
+
+      // Store user credentials (in a real app, you'd hash the password)
+      const userWithPassword = { ...newUser, password };
+      users.push(userWithPassword);
+      await AsyncStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+
+      // Set as current user
+      await AsyncStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
+      setUser(newUser);
+
+      return null;
     } catch (error) {
       console.error("Signup error:", error);
-      return "Network error occurred during signup";
+      return "An error occurred during signup";
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/signin`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      // Get existing users
+      const usersJson = await AsyncStorage.getItem(USERS_STORAGE_KEY);
+      const users = usersJson ? JSON.parse(usersJson) : [];
 
-      const data = await response.json();
+      // Find user by email or username and check password
+      const foundUser = users.find(
+        (u: any) =>
+          (u.email === email || u.username === email) && u.password === password
+      );
 
-      if (response.ok) {
-        // Store token and set user
-        await AsyncStorage.setItem("@auth_token", data.token);
-        setUser(data.user);
-        return null;
-      } else {
-        return data.error || "An error occurred during sign in";
+      if (!foundUser) {
+        return "Invalid email/username or password";
       }
+
+      // Remove password from user object before setting
+      const { password: _, ...userWithoutPassword } = foundUser;
+
+      // Set as current user
+      await AsyncStorage.setItem(
+        CURRENT_USER_KEY,
+        JSON.stringify(userWithoutPassword)
+      );
+      setUser(userWithoutPassword);
+
+      return null;
     } catch (error) {
       console.error("Signin error:", error);
-      return "Network error occurred during sign in";
+      return "An error occurred during sign in";
     }
   };
 
   const signOut = async () => {
     try {
-      const token = await AsyncStorage.getItem("@auth_token");
-
-      if (token) {
-        // Call signout endpoint
-        await fetch(`${API_BASE_URL}/api/auth/signout`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
-      }
-
-      // Remove token and clear user
-      await AsyncStorage.removeItem("@auth_token");
+      await AsyncStorage.removeItem(CURRENT_USER_KEY);
       setUser(null);
     } catch (error) {
       console.error("Signout error:", error);
-      // Even if the API call fails, we should still clear local data
-      await AsyncStorage.removeItem("@auth_token");
+      // Even if there's an error, we should still clear the user state
       setUser(null);
     }
   };

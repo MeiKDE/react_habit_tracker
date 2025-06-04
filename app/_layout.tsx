@@ -7,6 +7,12 @@ import { PaperProvider } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import "../global.css";
 
+// Suppress the pointerEvents deprecation warning from dependencies
+import { LogBox } from "react-native";
+LogBox.ignoreLogs([
+  "props.pointerEvents is deprecated. Use style.pointerEvents",
+]);
+
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, isLoadingUser } = useAuth();

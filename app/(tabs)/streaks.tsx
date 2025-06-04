@@ -122,7 +122,13 @@ export default function StreaksScreen() {
       </Text>
 
       {rankedHabits.length > 0 && (
-        <View className="mb-6 bg-white rounded-[16px] p-4 shadow-md">
+        <View
+          className="mb-6 bg-white rounded-[16px] p-4"
+          style={{
+            boxShadow: "0px 2px 3.84px rgba(0, 0, 0, 0.1)",
+            elevation: 2,
+          }}
+        >
           <Text className="font-bold text-[18px] mb-3 text-[#7c4dff] tracking-[0.5px]">
             🏅 Top Streaks
           </Text>
@@ -170,11 +176,15 @@ export default function StreaksScreen() {
             <Card
               key={key}
               className={[
-                "mb-[18px] rounded-[18px] bg-white shadow-md border border-[#f0f0f0]",
+                "mb-[18px] rounded-[18px] bg-white border border-[#f0f0f0]",
                 key === 0 && "border-2 border-[#7c4dff]",
               ]
                 .filter(Boolean)
                 .join(" ")}
+              style={{
+                boxShadow: "0px 2px 3.84px rgba(0, 0, 0, 0.1)",
+                elevation: 2,
+              }}
               // style={[styles.card, key === 0 && styles.firstCard]}
             >
               <Card.Content>

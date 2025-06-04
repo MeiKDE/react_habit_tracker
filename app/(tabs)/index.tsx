@@ -145,10 +145,13 @@ export default function Index() {
               }}
             >
               <Surface
-                className={`mb-4.5 rounded-[18px] bg-purple-50 shadow-lg ${
+                className={`mb-4.5 rounded-[18px] bg-purple-50 ${
                   isHabitCompleted(habit.id) ? "opacity-60" : ""
                 }`}
-                elevation={0}
+                elevation={3}
+                style={{
+                  boxShadow: "0px 2px 3.84px rgba(0, 0, 0, 0.25)",
+                }}
               >
                 <View className="p-5">
                   <Text className="text-xl font-bold mb-1 text-[#22223b]">
