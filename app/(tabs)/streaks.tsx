@@ -1,102 +1,55 @@
-import {
-  client,
-  COMPLETIONS_COLLECTION_ID,
-  DATABASE_ID,
-  databases,
-  COLLECTION_ID,
-  RealtimeResponse,
-} from "@/lib/appwrite";
+import { HabitsAPI } from "@/lib/habits-api";
 import { useAuth } from "@/lib/auth-context";
 import { Habit, HabitCompletion } from "@/types/database.type";
 import { useEffect, useState, useCallback } from "react";
 import { View } from "react-native";
-import { Query } from "react-native-appwrite";
 import { ScrollView } from "react-native-gesture-handler";
 import { Card, Text } from "react-native-paper";
 
 export default function StreaksScreen() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [completedHabits, setCompletedHabits] = useState<HabitCompletion[]>([]);
+  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
   const fetchHabits = useCallback(async () => {
+    if (!user) return;
+
     try {
-      const response = await databases.listDocuments(
-        DATABASE_ID,
-        COLLECTION_ID,
-        [Query.equal("user_id", user?.$id ?? "")]
-      );
-      setHabits(response.documents as Habit[]);
+      const response = await HabitsAPI.getUserHabits();
+      setHabits(response);
     } catch (error) {
-      console.error(error);
+      console.error("Error fetching habits:", error);
     }
-  }, [user?.$id]);
+  }, [user]);
 
   const fetchCompletions = useCallback(async () => {
+    if (!user) return;
+
     try {
-      const response = await databases.listDocuments(
-        DATABASE_ID,
-        COMPLETIONS_COLLECTION_ID,
-        [Query.equal("user_id", user?.$id ?? "")]
-      );
-      const completions = response.documents as HabitCompletion[];
-      setCompletedHabits(completions);
+      const response = await HabitsAPI.getAllCompletions();
+      setCompletedHabits(response);
     } catch (error) {
-      console.error(error);
+      console.error("Error fetching completions:", error);
     }
-  }, [user?.$id]);
+  }, [user]);
+
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      await Promise.all([fetchHabits(), fetchCompletions()]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchHabits, fetchCompletions, user]);
 
   useEffect(() => {
-    if (user) {
-      const habitsChannel = `databases.${DATABASE_ID}.collections.${COLLECTION_ID}.documents`;
-      const habitsSubscription = client.subscribe(
-        habitsChannel,
-        (response: RealtimeResponse) => {
-          if (
-            response.events.includes(
-              "databases.*.collections.*.documents.*.create"
-            )
-          ) {
-            fetchHabits();
-          } else if (
-            response.events.includes(
-              "databases.*.collections.*.documents.*.update"
-            )
-          ) {
-            fetchHabits();
-          } else if (
-            response.events.includes(
-              "databases.*.collections.*.documents.*.delete"
-            )
-          ) {
-            fetchHabits();
-          }
-        }
-      );
-
-      const completionsChannel = `databases.${DATABASE_ID}.collections.${COMPLETIONS_COLLECTION_ID}.documents`;
-      const completionsSubscription = client.subscribe(
-        completionsChannel,
-        (response: RealtimeResponse) => {
-          if (
-            response.events.includes(
-              "databases.*.collections.*.documents.*.create"
-            )
-          ) {
-            fetchCompletions();
-          }
-        }
-      );
-
-      fetchHabits();
-      fetchCompletions();
-
-      return () => {
-        habitsSubscription();
-        completionsSubscription();
-      };
-    }
-  }, [user, fetchHabits, fetchCompletions]);
+    fetchData();
+  }, [fetchData]);
 
   interface StreakData {
     streak: number;
@@ -106,11 +59,10 @@ export default function StreaksScreen() {
 
   const getStreakData = (habitId: string): StreakData => {
     const habitCompletions = completedHabits
-      ?.filter((c) => c.habit_id === habitId)
+      ?.filter((c) => c.habitId === habitId)
       .sort(
         (a, b) =>
-          new Date(a.completed_at).getTime() -
-          new Date(b.completed_at).getTime()
+          new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime()
       );
 
     if (habitCompletions?.length === 0) {
@@ -126,7 +78,7 @@ export default function StreaksScreen() {
     let currentStreak = 0;
 
     habitCompletions?.forEach((c) => {
-      const date = new Date(c.completed_at);
+      const date = new Date(c.completedAt);
       if (lastDate) {
         const diff =
           (date.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
@@ -149,11 +101,19 @@ export default function StreaksScreen() {
   };
 
   const habitStreaks = habits.map((habit) => {
-    const { streak, bestStreak, total } = getStreakData(habit.$id);
+    const { streak, bestStreak, total } = getStreakData(habit.id);
     return { habit, bestStreak, streak, total };
   });
 
   const rankedHabits = habitStreaks.sort((a, b) => b.bestStreak - a.bestStreak);
+
+  if (loading) {
+    return (
+      <View className="flex-1 bg-[#f5f5f5] p-4 justify-center items-center">
+        <Text>Loading habits and streaks...</Text>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-[#f5f5f5] p-4">

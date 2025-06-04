@@ -1,9 +1,8 @@
-import { DATABASE_ID, databases, COLLECTION_ID } from "@/lib/appwrite";
 import { useAuth } from "@/lib/auth-context";
+import { HabitsAPI } from "@/lib/habits-api";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
-import { ID } from "react-native-appwrite";
 import {
   Button,
   SegmentedButtons,
@@ -14,11 +13,13 @@ import {
 
 const FREQUENCIES = ["daily", "weekly", "monthly"];
 type Frequency = (typeof FREQUENCIES)[number];
+
 export default function AddHabitScreen() {
   const [title, setTitle] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [frequency, setFrequency] = useState<Frequency>("daily");
   const [error, setError] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
   const { user } = useAuth();
   const router = useRouter();
   const theme = useTheme();
@@ -26,25 +27,26 @@ export default function AddHabitScreen() {
   const handleSubmit = async () => {
     if (!user) return;
 
+    setLoading(true);
+    setError("");
+
     try {
-      await databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), {
-        user_id: user.$id,
+      const createdHabit = await HabitsAPI.createHabit({
         title,
         description,
-        frequency,
-        streak_count: 0,
-        last_completed: new Date().toISOString(),
-        created_at: new Date().toISOString(),
+        frequency: frequency.toUpperCase() as "DAILY" | "WEEKLY" | "MONTHLY",
       });
 
+      console.log("Habit created:", createdHabit);
       router.back();
     } catch (error) {
       if (error instanceof Error) {
         setError(error.message);
-        return;
+      } else {
+        setError("There was an error creating the habit");
       }
-
-      setError("There was an error creating the habit");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -53,14 +55,18 @@ export default function AddHabitScreen() {
       <TextInput
         label="Title"
         mode="outlined"
+        value={title}
         onChangeText={setTitle}
         className="mb-4"
+        disabled={loading}
       />
       <TextInput
         label="Description"
         mode="outlined"
+        value={description}
         onChangeText={setDescription}
         className="mb-4"
+        disabled={loading}
       />
       <View className="mb-6">
         <SegmentedButtons
@@ -75,11 +81,19 @@ export default function AddHabitScreen() {
       <Button
         mode="contained"
         onPress={handleSubmit}
-        disabled={!title || !description}
+        disabled={!title || !description || loading}
+        loading={loading}
       >
         Add Habit
       </Button>
-      {error && <Text className="text-red-500">{theme.colors.error}</Text>}
+      {error && (
+        <Text
+          style={{ color: theme.colors.error }}
+          className="mt-4 text-center"
+        >
+          {error}
+        </Text>
+      )}
     </View>
   );
 }

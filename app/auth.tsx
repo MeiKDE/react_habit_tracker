@@ -7,6 +7,7 @@ import { Button, Text, TextInput, useTheme } from "react-native-paper";
 export default function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState<boolean>(false);
   const [email, setEmail] = useState<string>("");
+  const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [error, setError] = useState<string | null>("");
 
@@ -21,6 +22,11 @@ export default function AuthScreen() {
       return;
     }
 
+    if (isSignUp && !username) {
+      setError("Username is required for signup.");
+      return;
+    }
+
     if (password.length < 6) {
       setError("Passwords must be at least 6 characters long.");
       return;
@@ -29,24 +35,28 @@ export default function AuthScreen() {
     setError(null);
 
     if (isSignUp) {
-      const error = await signUp(email, password);
+      const error = await signUp(email, password, username);
       if (error) {
         setError(error);
         return;
       }
+      router.replace("/");
     } else {
       const error = await signIn(email, password);
       if (error) {
         setError(error);
         return;
       }
-
       router.replace("/");
     }
   };
 
   const handleSwitchMode = () => {
     setIsSignUp((prev) => !prev);
+    setError(null);
+    setEmail("");
+    setUsername("");
+    setPassword("");
   };
 
   return (
@@ -66,8 +76,21 @@ export default function AuthScreen() {
           placeholder="example@gmail.com"
           mode="outlined"
           className="mb-4"
+          value={email}
           onChangeText={setEmail}
         />
+
+        {isSignUp && (
+          <TextInput
+            label="Username"
+            autoCapitalize="none"
+            placeholder="username"
+            mode="outlined"
+            className="mb-4"
+            value={username}
+            onChangeText={setUsername}
+          />
+        )}
 
         <TextInput
           label="Password"
@@ -75,10 +98,18 @@ export default function AuthScreen() {
           mode="outlined"
           secureTextEntry
           className="mb-4"
+          value={password}
           onChangeText={setPassword}
         />
 
-        {error && <Text className="text-red-500">{theme.colors.error}</Text>}
+        {error && (
+          <Text
+            className="text-red-500 mb-4"
+            style={{ color: theme.colors.error }}
+          >
+            {error}
+          </Text>
+        )}
 
         <Button mode="contained" className="mt-2" onPress={handleAuth}>
           {isSignUp ? "Sign Up" : "Sign In"}

@@ -1,17 +1,32 @@
-import { Models } from "react-native-appwrite";
-
-export interface Habit extends Models.Document {
-  user_id: string;
-  title: string;
-  description: string;
-  frequency: string;
-  streak_count: number;
-  last_completed: string;
-  created_at: string;
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  password: string;
+  name?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-export interface HabitCompletion extends Models.Document {
-  habit_id: string;
-  user_id: string;
-  completed_at: string;
+export interface Habit {
+  id: string;
+  title: string;
+  description?: string;
+  frequency: "DAILY" | "WEEKLY" | "MONTHLY";
+  streakCount: number;
+  lastCompleted?: Date;
+  color: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  userId: string;
+  completions?: HabitCompletion[];
+}
+
+export interface HabitCompletion {
+  id: string;
+  completedAt: Date;
+  notes?: string;
+  habitId: string;
+  habit?: Habit;
 }
