@@ -6,6 +6,7 @@ import {
   HabitCompletion,
   CreateHabitData,
 } from "./habits-api";
+import { testApiConnection } from "./config";
 
 interface HabitsContextType {
   habits: Habit[];
@@ -37,16 +38,24 @@ interface HabitsContextType {
 const HabitsContext = createContext<HabitsContextType | undefined>(undefined);
 
 export function HabitsProvider({ children }: { children: React.ReactNode }) {
-  const { user, isUsingRemoteAuth } = useAuth();
+  const { user } = useAuth();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [completions, setCompletions] = useState<HabitCompletion[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Sync HabitsAPI with auth context remote setting
+  // Test connection when component mounts
   useEffect(() => {
-    HabitsAPI.setUseRemoteAPI(isUsingRemoteAuth);
-  }, [isUsingRemoteAuth]);
+    testApiConnection().then((connected) => {
+      console.log("[HABITS CONTEXT] API connection test result:", connected);
+    });
+  }, []);
+
+  // Always use remote API since we removed local auth
+  useEffect(() => {
+    console.log("[HABITS CONTEXT] Setting remote API usage: true");
+    HabitsAPI.setUseRemoteAPI(true);
+  }, []);
 
   // Load data when user changes
   useEffect(() => {

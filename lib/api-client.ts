@@ -103,6 +103,10 @@ export class ApiClient {
       const url = `${getApiUrl()}${endpoint}`;
       const token = await this.getAuthToken();
 
+      console.log(`[API CLIENT] Making request to: ${url}`);
+      console.log(`[API CLIENT] Method: ${options.method || "GET"}`);
+      console.log(`[API CLIENT] Has token: ${!!token}`);
+
       const headers: Record<string, string> = {
         ...API_CONFIG.headers,
         ...(options.headers as Record<string, string>),
@@ -119,16 +123,94 @@ export class ApiClient {
         signal: createTimeoutSignal(API_CONFIG.timeout),
       });
 
-      const data = await response.json();
+      console.log(`[API CLIENT] Response status: ${response.status}`);
 
-      if (!response.ok) {
-        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      // Check if response is JSON
+      const contentType = response.headers.get("content-type");
+      let data;
+
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+        console.log(`[API CLIENT] Response data:`, data);
+      } else {
+        const text = await response.text();
+        console.log(`[API CLIENT] Response text:`, text);
+        // Try to create a standard error response
+        data = {
+          success: false,
+          error: text || `HTTP error! status: ${response.status}`,
+          message: text || `Server returned status ${response.status}`,
+        };
       }
 
-      return data;
+      if (!response.ok) {
+        // Return structured error response
+        return {
+          success: false,
+          error:
+            data.error ||
+            data.message ||
+            `HTTP error! status: ${response.status}`,
+          message:
+            data.message || `Request failed with status ${response.status}`,
+          details: data,
+        };
+      }
+
+      // For successful responses, wrap in our standard format if needed
+      if (data && typeof data === "object" && "success" in data) {
+        return data;
+      } else {
+        return {
+          success: true,
+          data: data,
+          message: "Request successful",
+        };
+      }
     } catch (error) {
-      console.error(`API request failed for ${endpoint}:`, error);
-      throw error;
+      console.error(`[API CLIENT] API request failed for ${endpoint}:`, error);
+
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        let errorMessage = error.message;
+        let userFriendlyMessage = error.message;
+
+        if (error.name === "AbortError") {
+          errorMessage = "Request timeout";
+          userFriendlyMessage =
+            "Request timed out after 10 seconds. Please check your internet connection.";
+        } else if (
+          error.message.includes("Failed to fetch") ||
+          error.message.includes("Network request failed")
+        ) {
+          errorMessage = "Network connection failed";
+          userFriendlyMessage = `Cannot connect to server at ${getApiUrl()}. Please ensure:\n• Your Next.js backend is running (npm run dev)\n• You're using the correct API URL\n• Your internet connection is stable`;
+        } else if (error.message.includes("ERR_NETWORK")) {
+          errorMessage = "Network error";
+          userFriendlyMessage =
+            "Network error. Please check your internet connection and try again.";
+        }
+
+        return {
+          success: false,
+          error: errorMessage,
+          message: userFriendlyMessage,
+          details: {
+            originalError: error.message,
+            url: `${getApiUrl()}${endpoint}`,
+          },
+        };
+      }
+
+      return {
+        success: false,
+        error: "Unknown error occurred",
+        message: "An unexpected error occurred. Please try again.",
+        details: {
+          originalError: String(error),
+          url: `${getApiUrl()}${endpoint}`,
+        },
+      };
     }
   }
 

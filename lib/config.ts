@@ -4,15 +4,15 @@ export const CONFIG = {
   API: {
     // Base URL for the Next.js backend
     BASE_URL: __DEV__
-      ? "http://172.20.10.3:3000/api" // Development - using IP address for physical device testing
+      ? "http://192.168.1.106:3000/api" // Updated with correct IP address
       : "https://your-production-url.com/api", // Production URL - replace with your actual domain
 
     // Timeout for API requests (in milliseconds)
     TIMEOUT: 10000,
 
-    // Default settings
-    USE_REMOTE_API: true, // Set to false to use local storage only
-    USE_REMOTE_AUTH: true, // Set to false to use local auth only
+    // Default settings - FORCE remote API usage
+    USE_REMOTE_API: true, // Force remote API
+    USE_REMOTE_AUTH: true, // Force remote auth
   },
 
   // Local Storage Keys
@@ -60,5 +60,35 @@ export const log = (message: string, ...args: any[]): void => {
 export const logError = (message: string, error: any): void => {
   if (CONFIG.DEBUG.SHOW_API_ERRORS || !__DEV__) {
     console.error(`[Habit Tracker Error] ${message}`, error);
+  }
+};
+
+// Helper function to test API connection
+export const testApiConnection = async (): Promise<boolean> => {
+  try {
+    console.log(`[CONFIG] Testing API connection to: ${CONFIG.API.BASE_URL}`);
+
+    // Create timeout signal
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+    const response = await fetch(`${CONFIG.API.BASE_URL}/habits`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    console.log(
+      `[CONFIG] API connection test response status: ${response.status}`
+    );
+
+    // Even if we get 401 (unauthorized), it means the server is reachable
+    return response.status === 401 || response.status === 200;
+  } catch (error) {
+    console.error(`[CONFIG] API connection test failed:`, error);
+    return false;
   }
 };

@@ -16,7 +16,7 @@ export default function AuthScreen() {
   const theme = useTheme();
   const router = useRouter();
 
-  const { signIn, signUp, isUsingRemoteAuth, setUseRemoteAuth } = useAuth();
+  const { signIn, signUp } = useAuth();
 
   const handleAuth = async () => {
     if (!email || !password) {
@@ -71,15 +71,6 @@ export default function AuthScreen() {
           <Text variant="headlineMedium" className="text-center mb-6">
             {isSignUp ? "Create Account" : "Welcome Back"}
           </Text>
-
-          {/* Remote Auth Toggle */}
-          <View className="flex-row items-center justify-between mb-4 p-3 bg-white rounded-lg">
-            <Text variant="bodyMedium">Use Remote Backend</Text>
-            <Switch
-              value={isUsingRemoteAuth}
-              onValueChange={setUseRemoteAuth}
-            />
-          </View>
 
           {/* Connection Test Toggle */}
           <View className="flex-row items-center justify-between mb-4 p-3 bg-white rounded-lg">
@@ -145,13 +136,11 @@ export default function AuthScreen() {
               : "Don't have an account? Sign Up"}
           </Button>
 
-          {!isUsingRemoteAuth && (
-            <View className="mt-4 p-3 bg-blue-100 rounded-lg">
-              <Text className="text-blue-700 text-sm">
-                ℹ️ Local mode: Data will be stored on this device only
-              </Text>
-            </View>
-          )}
+          <View className="mt-4 p-3 bg-blue-100 rounded-lg">
+            <Text className="text-blue-700 text-sm">
+              ℹ️ Remote mode: All data is stored on the remote server
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

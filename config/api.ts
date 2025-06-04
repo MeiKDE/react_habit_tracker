@@ -5,10 +5,20 @@
 export const getApiUrl = (): string => {
   if (__DEV__) {
     // Development configuration
-    // For iOS Simulator: use localhost
-    // For Android Emulator: use 10.0.2.2
-    // For physical device: use your computer's IP address
-    return "http://localhost:3000/api";
+    // Choose the appropriate option based on your setup:
+
+    // Option 1: iOS Simulator (uncomment if using iOS simulator)
+    // return "http://localhost:3000/api";
+
+    // Option 2: Android Emulator (uncomment if using Android emulator)
+    // return "http://10.0.2.2:3000/api";
+
+    // Option 3: Physical Device (currently active - your network IP)
+    return "http://192.168.1.106:3000/api";
+
+    // Option 4: Network IP (this is the same as Option 3 above)
+    // Get your IP with: npx react-native-get-ip or ipconfig/ifconfig
+    // return "http://YOUR_IP_ADDRESS:3000/api";
   } else {
     // Production configuration
     // Replace with your actual production API URL
@@ -19,8 +29,8 @@ export const getApiUrl = (): string => {
 // API endpoints
 export const API_ENDPOINTS = {
   AUTH: {
-    SIGN_IN: "/auth/signin",
-    SIGN_UP: "/auth/signup",
+    SIGN_IN: "/mobile-auth/signin",
+    SIGN_UP: "/mobile-auth/signup",
   },
   HABITS: {
     LIST: "/habits",
