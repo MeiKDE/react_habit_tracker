@@ -5,6 +5,7 @@ import {
   STORAGE_KEYS,
   ApiResponse,
   API_CONFIG,
+  logApiConfig,
 } from "../config/api";
 
 // API Response types matching Next.js backend
@@ -103,9 +104,15 @@ export class ApiClient {
       const url = `${getApiUrl()}${endpoint}`;
       const token = await this.getAuthToken();
 
+      // Enhanced logging for debugging
+      console.log(`[API CLIENT] ====== API REQUEST DEBUG ======`);
       console.log(`[API CLIENT] Making request to: ${url}`);
       console.log(`[API CLIENT] Method: ${options.method || "GET"}`);
       console.log(`[API CLIENT] Has token: ${!!token}`);
+      console.log(`[API CLIENT] Base URL: ${getApiUrl()}`);
+      console.log(`[API CLIENT] Endpoint: ${endpoint}`);
+      logApiConfig();
+      console.log(`[API CLIENT] ============================`);
 
       const headers: Record<string, string> = {
         ...API_CONFIG.headers,

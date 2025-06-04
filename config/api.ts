@@ -10,13 +10,13 @@ export const getApiUrl = (): string => {
     // ===== CHOOSE ONE OF THE FOLLOWING OPTIONS =====
 
     // Option 1: iOS Simulator (uncomment if using iOS simulator)
-    return "http://localhost:3000/api";
+    // return "http://localhost:3000/api";
 
     // Option 2: Android Emulator (uncomment if using Android emulator)
     // return "http://10.0.2.2:3000/api";
 
-    // Option 3: Physical Device or Expo Go (uncomment if using physical device)
-    // return "http://192.168.1.106:3000/api";
+    // Option 3: Physical Device or Expo Go (currently active)
+    return "http://192.168.1.106:3000/api";
 
     // Option 4: Expo Tunnel (uncomment if using expo start --tunnel)
     // return "http://192.168.1.106:3000/api";

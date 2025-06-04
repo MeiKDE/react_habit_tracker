@@ -1,98 +1,266 @@
 import React, { useState } from "react";
-import { View } from "react-native";
-import { Button, Text, Card } from "react-native-paper";
-import { ApiClient } from "@/lib/api-client";
-import { getApiUrl } from "@/config/api";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+} from "react-native";
+import { getApiUrl, logApiConfig } from "../config/api";
 
-export function ConnectionTest() {
-  const [status, setStatus] = useState<
-    "idle" | "testing" | "success" | "error"
-  >("idle");
-  const [message, setMessage] = useState<string>("");
+interface TestResult {
+  endpoint: string;
+  status: "pending" | "success" | "error";
+  message: string;
+  details?: any;
+}
+
+export const ConnectionTest = () => {
+  const [results, setResults] = useState<TestResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const addResult = (result: TestResult) => {
+    setResults((prev) => [...prev, result]);
+  };
+
+  const clearResults = () => {
+    setResults([]);
+  };
 
   const testConnection = async () => {
-    setStatus("testing");
-    setMessage("Testing connection...");
+    setIsLoading(true);
+    clearResults();
+
+    // Log current configuration
+    console.log("[CONNECTION TEST] Starting connection test...");
+    logApiConfig();
+
+    const baseUrl = getApiUrl();
+
+    // Test 1: Basic connectivity
+    addResult({
+      endpoint: "Basic Connection",
+      status: "pending",
+      message: `Testing connection to ${baseUrl}...`,
+    });
 
     try {
-      // Test basic connectivity by trying to fetch habits (will fail with 401 if not authenticated, but that's expected)
-      const response = await fetch(`${getApiUrl()}/habits`, {
+      const response = await fetch(`${baseUrl}/mobile-auth/signin`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
         },
       });
 
-      if (response.status === 401) {
-        // 401 is expected when not authenticated - this means the backend is reachable
-        setStatus("success");
-        setMessage(
-          `✅ Backend is reachable at ${getApiUrl()}\n(401 Unauthorized is expected when not signed in)`
-        );
-      } else if (response.ok) {
-        setStatus("success");
-        setMessage(`✅ Backend is reachable and responding at ${getApiUrl()}`);
-      } else {
-        setStatus("error");
-        setMessage(`❌ Backend responded with status ${response.status}`);
-      }
+      addResult({
+        endpoint: "Basic Connection",
+        status: "success",
+        message: `Connected! Status: ${response.status}`,
+        details: { status: response.status, statusText: response.statusText },
+      });
     } catch (error) {
-      setStatus("error");
-      if (error instanceof Error) {
-        if (error.message.includes("Network request failed")) {
-          setMessage(
-            `❌ Cannot reach backend at ${getApiUrl()}\n\nTroubleshooting:\n• Make sure Next.js backend is running (npm run dev)\n• Check if you're using the correct IP address\n• For Android emulator, try 10.0.2.2:3000\n• For physical device, use your computer's IP address`
-          );
-        } else {
-          setMessage(`❌ Connection error: ${error.message}`);
-        }
-      } else {
-        setMessage(`❌ Unknown connection error`);
-      }
+      addResult({
+        endpoint: "Basic Connection",
+        status: "error",
+        message: `Connection failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        details: error,
+      });
     }
+
+    // Test 2: POST request to signin
+    addResult({
+      endpoint: "POST /mobile-auth/signin",
+      status: "pending",
+      message: "Testing POST request...",
+    });
+
+    try {
+      const response = await fetch(`${baseUrl}/mobile-auth/signin`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "test@example.com",
+          password: "password123",
+        }),
+      });
+
+      const data = await response.json();
+
+      addResult({
+        endpoint: "POST /mobile-auth/signin",
+        status: response.ok ? "success" : "error",
+        message: response.ok
+          ? "Signin test successful!"
+          : `Signin failed: ${data.error || "Unknown error"}`,
+        details: data,
+      });
+    } catch (error) {
+      addResult({
+        endpoint: "POST /mobile-auth/signin",
+        status: "error",
+        message: `Signin request failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        details: error,
+      });
+    }
+
+    setIsLoading(false);
   };
 
-  const getStatusColor = () => {
+  const getStatusColor = (status: TestResult["status"]) => {
     switch (status) {
       case "success":
         return "#4CAF50";
       case "error":
         return "#F44336";
-      case "testing":
+      case "pending":
         return "#FF9800";
       default:
-        return "#2196F3";
+        return "#757575";
     }
   };
 
   return (
-    <Card className="m-4 p-4">
-      <Text variant="titleMedium" className="mb-4">
-        Backend Connection Test
-      </Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>API Connection Test</Text>
+      <Text style={styles.subtitle}>Current API URL: {getApiUrl()}</Text>
 
-      <Text className="mb-2 text-gray-600">Current API URL: {getApiUrl()}</Text>
-
-      <Button
-        mode="contained"
+      <TouchableOpacity
+        style={[styles.button, isLoading && styles.buttonDisabled]}
         onPress={testConnection}
-        loading={status === "testing"}
-        disabled={status === "testing"}
-        className="mb-4"
+        disabled={isLoading}
       >
-        Test Connection
-      </Button>
+        <Text style={styles.buttonText}>
+          {isLoading ? "Testing..." : "Test Connection"}
+        </Text>
+      </TouchableOpacity>
 
-      {message && (
-        <View
-          className="p-3 rounded-lg"
-          style={{ backgroundColor: `${getStatusColor()}20` }}
-        >
-          <Text style={{ color: getStatusColor() }} className="text-sm">
-            {message}
-          </Text>
-        </View>
+      {results.length > 0 && (
+        <TouchableOpacity style={styles.clearButton} onPress={clearResults}>
+          <Text style={styles.clearButtonText}>Clear Results</Text>
+        </TouchableOpacity>
       )}
-    </Card>
+
+      <ScrollView style={styles.results}>
+        {results.map((result, index) => (
+          <View key={index} style={styles.resultItem}>
+            <View style={styles.resultHeader}>
+              <Text style={styles.endpoint}>{result.endpoint}</Text>
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: getStatusColor(result.status) },
+                ]}
+              >
+                <Text style={styles.statusText}>
+                  {result.status.toUpperCase()}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.message}>{result.message}</Text>
+            {result.details && (
+              <Text style={styles.details}>
+                Details: {JSON.stringify(result.details, null, 2)}
+              </Text>
+            )}
+          </View>
+        ))}
+      </ScrollView>
+    </View>
   );
-}
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: "#f5f5f5",
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  button: {
+    backgroundColor: "#2196F3",
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  buttonDisabled: {
+    backgroundColor: "#ccc",
+  },
+  buttonText: {
+    color: "white",
+    textAlign: "center",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  clearButton: {
+    backgroundColor: "#757575",
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  clearButtonText: {
+    color: "white",
+    textAlign: "center",
+    fontSize: 14,
+  },
+  results: {
+    flex: 1,
+  },
+  resultItem: {
+    backgroundColor: "white",
+    padding: 15,
+    marginBottom: 10,
+    borderRadius: 8,
+    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  resultHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  endpoint: {
+    fontSize: 16,
+    fontWeight: "bold",
+    flex: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  statusText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  message: {
+    fontSize: 14,
+    marginBottom: 8,
+    color: "#333",
+  },
+  details: {
+    fontSize: 12,
+    color: "#666",
+    fontFamily: "monospace",
+  },
+});
