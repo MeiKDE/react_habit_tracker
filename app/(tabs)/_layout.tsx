@@ -1,31 +1,45 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-
 import { Tabs } from "expo-router";
+import { View } from "react-native";
 
 export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: "#f5f5f5" },
-        headerShadowVisible: false,
+        headerShown: false,
         tabBarStyle: {
-          backgroundColor: "#f5f5f5",
-          borderTopWidth: 0,
-          elevation: 0,
-          shadowOpacity: 0,
+          backgroundColor: "white",
+          borderTopWidth: 1,
+          borderTopColor: "#e2e8f0",
+          paddingBottom: 8,
+          paddingTop: 8,
+          height: 72,
+          elevation: 8,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
         },
-        tabBarActiveTintColor: "#6200ee",
-        tabBarInactiveTintColor: "#666666",
+        tabBarActiveTintColor: "#6366f1",
+        tabBarInactiveTintColor: "#94a3b8",
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: "600",
+          marginTop: 4,
+        },
+        tabBarIconStyle: {
+          marginTop: 4,
+        },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Today's Habits",
-          tabBarIcon: ({ color, size }) => (
+          title: "Today",
+          tabBarIcon: ({ color, size, focused }) => (
             <MaterialCommunityIcons
-              name="calendar-today"
-              size={size}
+              name={focused ? "home" : "home-outline"}
+              size={focused ? 26 : 24}
               color={color}
             />
           ),
@@ -35,10 +49,10 @@ export default function TabsLayout() {
         name="streaks"
         options={{
           title: "Streaks",
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size, focused }) => (
             <MaterialCommunityIcons
-              name="chart-line"
-              size={size}
+              name={focused ? "fire" : "fire"}
+              size={focused ? 26 : 24}
               color={color}
             />
           ),
@@ -48,12 +62,16 @@ export default function TabsLayout() {
         name="add-habit"
         options={{
           title: "Add Habit",
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons
-              name="plus-circle"
-              size={size}
-              color={color}
-            />
+          tabBarIcon: ({ color, size, focused }) => (
+            <View
+              className={`rounded-full p-2 ${focused ? "bg-indigo-100" : ""}`}
+            >
+              <MaterialCommunityIcons
+                name={focused ? "plus" : "plus"}
+                size={focused ? 28 : 24}
+                color={color}
+              />
+            </View>
           ),
         }}
       />
