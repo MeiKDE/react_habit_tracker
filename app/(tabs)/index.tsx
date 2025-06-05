@@ -59,6 +59,7 @@ export default function Index() {
   };
 
   const isHabitCompleted = (habitId: string) =>
+    //checks if the array completedHabits already contains the given id
     completedHabits?.includes(habitId);
 
   //Swipe from right

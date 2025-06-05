@@ -46,7 +46,7 @@ export const API_ENDPOINTS = {
     CREATE: "/habits",
     UPDATE: (id: string) => `/habits/${id}`,
     DELETE: (id: string) => `/habits/${id}`,
-    COMPLETE: (id: string) => `/habits/${id}/complete`,
+    COMPLETE: (id: string) => `/habits/${id}/completions`,
     COMPLETIONS: (id: string) => `/habits/${id}/completions`,
   },
 } as const;
