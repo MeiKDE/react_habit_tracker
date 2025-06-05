@@ -6,12 +6,13 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "habittracker",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.yourcompany.habittracker",
       "buildNumber": "1.0.0",
+      "statusBarStyle": "dark",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false,
@@ -38,7 +39,8 @@
       "versionCode": 1,
       "edgeToEdgeEnabled": true,
       "usesCleartextTraffic": false,
-      "permissions": ["android.permission.INTERNET"]
+      "permissions": ["android.permission.INTERNET"],
+      "statusBarStyle": "dark"
     },
     "web": {
       "bundler": "metro",

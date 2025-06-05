@@ -4,8 +4,9 @@ import { HabitsProvider } from "@/lib/habits-context";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { PaperProvider } from "react-native-paper";
+import { PaperProvider, MD3LightTheme } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import "../global.css";
 
 // Suppress deprecation warnings from dependencies
@@ -38,9 +39,10 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView className="flex-1">
+      <StatusBar style="dark" backgroundColor="#f5f5f5" />
       <AuthProvider>
         <HabitsProvider>
-          <PaperProvider>
+          <PaperProvider theme={MD3LightTheme}>
             <SafeAreaProvider>
               <RouteGuard>
                 <Stack>
