@@ -1,7 +1,7 @@
 import { useAuth } from "@/lib/auth-context";
 import { useHabits } from "@/lib/habits-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { ScrollView, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { Button, Surface, Text } from "react-native-paper";
@@ -21,13 +21,7 @@ export default function Index() {
   const [completedHabits, setCompletedHabits] = useState<string[]>([]);
   const swipeableRefs = useRef<{ [key: string]: Swipeable | null }>({});
 
-  useEffect(() => {
-    if (user) {
-      fetchTodayCompletions();
-    }
-  }, [user, habits]);
-
-  const fetchTodayCompletions = async () => {
+  const fetchTodayCompletions = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -36,7 +30,13 @@ export default function Index() {
     } catch (error) {
       console.error("Error fetching completions:", error);
     }
-  };
+  }, [user, getTodayCompletions]);
+
+  useEffect(() => {
+    if (user) {
+      fetchTodayCompletions();
+    }
+  }, [user, habits, fetchTodayCompletions]);
 
   const handleDeleteHabit = async (id: string) => {
     try {
