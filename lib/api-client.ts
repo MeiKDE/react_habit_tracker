@@ -72,6 +72,13 @@ export interface SignInData {
   password: string;
 }
 
+export interface SignInResponse {
+  user: User;
+  accessToken: string;
+  refreshToken?: string;
+  expiresIn?: number;
+}
+
 // Create a timeout signal that works in React Native
 function createTimeoutSignal(timeoutMs: number): AbortSignal {
   const controller = new AbortController();
@@ -230,18 +237,16 @@ export class ApiClient {
     return response;
   }
 
-  static async signIn(
-    data: SignInData
-  ): Promise<ApiResponse<{ user: User; accessToken: string }>> {
-    const response = await this.makeRequest<{
-      user: User;
-      accessToken: string;
-    }>(API_ENDPOINTS.AUTH.SIGN_IN, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+  static async signIn(data: SignInData): Promise<ApiResponse<SignInResponse>> {
+    const response = await this.makeRequest<SignInResponse>(
+      API_ENDPOINTS.AUTH.SIGN_IN,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
 
-    // Store the token for future requests
+    // Store token if signin was successful
     if (response.success && response.data?.accessToken) {
       await this.setAuthToken(response.data.accessToken);
     }

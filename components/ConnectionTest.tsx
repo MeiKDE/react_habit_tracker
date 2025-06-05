@@ -45,7 +45,7 @@ export const ConnectionTest = () => {
     });
 
     try {
-      const response = await fetch(`${baseUrl}/mobile-auth/signin`, {
+      const response = await fetch(`${baseUrl}/auth/signin`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -71,45 +71,98 @@ export const ConnectionTest = () => {
 
     // Test 2: POST request to signin
     addResult({
-      endpoint: "POST /mobile-auth/signin",
+      endpoint: "POST /auth/signin",
       status: "pending",
       message: "Testing POST request...",
     });
 
     try {
-      const response = await fetch(`${baseUrl}/mobile-auth/signin`, {
+      const response = await fetch(`${baseUrl}/auth/signin`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           email: "test@example.com",
-          password: "password123",
+          password: "wrongpassword",
         }),
       });
 
-      const data = await response.json();
+      const data = await response.text();
+      console.log("Connection test response:", {
+        status: response.status,
+        statusText: response.statusText,
+        data,
+      });
 
       addResult({
-        endpoint: "POST /mobile-auth/signin",
+        endpoint: "POST /auth/signin",
         status: response.ok ? "success" : "error",
         message: response.ok
-          ? "Signin test successful!"
-          : `Signin failed: ${data.error || "Unknown error"}`,
-        details: data,
+          ? "✅ Connected to server!"
+          : `❌ Failed to connect to server (Status: ${response.status})`,
+        details: {
+          status: response.status,
+          statusText: response.statusText,
+          data: data.slice(0, 200) + "...",
+        },
       });
     } catch (error) {
+      console.error("Connection test failed:", error);
       addResult({
-        endpoint: "POST /mobile-auth/signin",
+        endpoint: "POST /auth/signin",
         status: "error",
-        message: `Signin request failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        details: error,
+        message: "❌ Failed to connect to server",
+        details: error instanceof Error ? error.message : String(error),
       });
     }
 
     setIsLoading(false);
+  };
+
+  const testAuth = async () => {
+    const baseUrl = getApiUrl();
+    try {
+      addResult({
+        endpoint: "Auth Test",
+        status: "pending",
+        message: "🔄 Testing authentication...",
+        details: "",
+      });
+
+      const response = await fetch(`${baseUrl}/auth/signin`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "test@example.com",
+          password: "test123",
+        }),
+      });
+
+      const responseText = await response.text();
+      console.log("Auth test response:", {
+        status: response.status,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: responseText,
+      });
+
+      addResult({
+        endpoint: "Auth Test",
+        status: response.status < 500 ? "success" : "error",
+        message: `Auth endpoint responds (${response.status})`,
+        details: responseText,
+      });
+    } catch (error) {
+      console.error("Auth test failed:", error);
+      addResult({
+        endpoint: "Auth Test",
+        status: "error",
+        message: "❌ Auth test failed",
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
   };
 
   const getStatusColor = (status: TestResult["status"]) => {

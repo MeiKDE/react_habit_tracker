@@ -38,8 +38,8 @@ export const getApiUrl = (): string => {
 // API endpoints
 export const API_ENDPOINTS = {
   AUTH: {
-    SIGN_IN: "/mobile-auth/signin",
-    SIGN_UP: "/mobile-auth/signup",
+    SIGN_IN: "/auth/signin",
+    SIGN_UP: "/auth/signup",
   },
   HABITS: {
     LIST: "/habits",

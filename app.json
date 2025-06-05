@@ -1,28 +1,31 @@
 {
   "expo": {
-    "name": "react-native-course",
-    "slug": "react-native-course",
+    "name": "Habit Tracker",
+    "slug": "habit-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "reactnativecourse",
-    "userInterfaceStyle": "light",
+    "scheme": "habittracker",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.yourcompany.habittracker",
+      "buildNumber": "1.0.0",
       "infoPlist": {
         "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true,
+          "NSAllowsArbitraryLoads": false,
           "NSExceptionDomains": {
-            "localhost": {
-              "NSExceptionAllowsInsecureHTTPLoads": true,
-              "NSExceptionMinimumTLSVersion": "1.0"
-            },
-            "192.168.1.106": {
-              "NSExceptionAllowsInsecureHTTPLoads": true,
-              "NSExceptionMinimumTLSVersion": "1.0"
+            "yourapi.herokuapp.com": {
+              "NSExceptionRequiresForwardSecrecy": false,
+              "NSExceptionMinimumTLSVersion": "1.2",
+              "NSIncludesSubdomains": true
             }
           }
+        },
+        "NSPrivacyAccessedAPITypeUserDefaults": {
+          "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPITypeUserDefaults",
+          "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
         }
       }
     },
@@ -31,8 +34,11 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "package": "com.yourcompany.habittracker",
+      "versionCode": 1,
       "edgeToEdgeEnabled": true,
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": false,
+      "permissions": ["android.permission.INTERNET"]
     },
     "web": {
       "bundler": "metro",
@@ -53,6 +59,12 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id-here"
+      }
+    },
+    "privacy": "public"
   }
 }
