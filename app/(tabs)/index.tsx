@@ -21,6 +21,22 @@ export default function Index() {
   const [completedHabits, setCompletedHabits] = useState<string[]>([]);
   const swipeableRefs = useRef<{ [key: string]: Swipeable | null }>({});
 
+  // Helper function to format frequency labels
+  const getFrequencyLabel = (frequency: string) => {
+    switch (frequency) {
+      case "DAILY":
+        return "Daily";
+      case "WEEKLY":
+        return "Weekly";
+      case "MONTHLY":
+        return "Monthly";
+      default:
+        return (
+          frequency.charAt(0).toUpperCase() + frequency.slice(1).toLowerCase()
+        );
+    }
+  };
+
   const fetchTodayCompletions = useCallback(async () => {
     if (!user) return;
 
@@ -166,12 +182,24 @@ export default function Index() {
                         {habit.streakCount} day streak
                       </Text>
                     </View>
-                    <View className="bg-purple-50 rounded-xl px-3 py-1">
-                      <Text className="text-purple-500 font-bold text-sm">
-                        {habit.frequency.charAt(0).toUpperCase() +
-                          habit.frequency.slice(1)}
-                      </Text>
-                    </View>
+                    {isHabitCompleted(habit.id) ? (
+                      <View className="bg-green-100 rounded-xl px-3 py-1 flex-row items-center">
+                        <MaterialCommunityIcons
+                          name="check-circle"
+                          size={16}
+                          color={"#22c55e"}
+                        />
+                        <Text className="ml-1.5 text-green-600 font-bold text-sm">
+                          Completed today!
+                        </Text>
+                      </View>
+                    ) : (
+                      <View className="bg-purple-50 rounded-xl px-3 py-1">
+                        <Text className="text-purple-500 font-bold text-sm">
+                          {getFrequencyLabel(habit.frequency)}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
               </Surface>
