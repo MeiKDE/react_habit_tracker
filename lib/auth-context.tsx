@@ -140,15 +140,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log("[AUTH] Attempting signin with Appwrite...");
 
-      const result = await AuthService.signIn(email, password);
+      const user = await AuthService.signIn(email, password);
 
-      if (result.user) {
-        setUser(result.user);
+      if (user) {
+        setUser(user);
         // Store user data locally
-        await AsyncStorage.setItem(
-          STORAGE_KEYS.USER,
-          JSON.stringify(result.user)
-        );
+        await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
         console.log("[AUTH] Signin successful");
         return null;
       }
