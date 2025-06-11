@@ -37,6 +37,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log("[AUTH] Initializing Appwrite authentication");
 
+      // Check if there's a valid session first to avoid 401 guest errors
+      const hasSession = await AuthService.hasValidSession();
+
+      if (!hasSession) {
+        console.log("[AUTH] No valid session found");
+        await AsyncStorage.removeItem(STORAGE_KEYS.USER);
+        return;
+      }
+
       // Try to get current user from Appwrite
       const currentUser = await AuthService.getCurrentUser();
 

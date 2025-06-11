@@ -451,6 +451,22 @@ export class ApiClient {
 
       // If no JWT, check if we have an Appwrite session we can sync
       console.log(`[API CLIENT] No JWT found, checking Appwrite session...`);
+
+      // First check if we have a valid session to avoid 401 guest errors
+      try {
+        const session = await account.getSession("current");
+        if (!session || !session.$id) {
+          console.log(`[API CLIENT] No valid session found`);
+          return false;
+        }
+        console.log(`[API CLIENT] Valid session found, getting user info`);
+      } catch (sessionError) {
+        console.log(
+          `[API CLIENT] No current session - user is not authenticated`
+        );
+        return false;
+      }
+
       const currentUser = await account.get();
       console.log(
         `[API CLIENT] Found Appwrite session for: ${currentUser.email}`

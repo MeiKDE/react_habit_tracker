@@ -1,5 +1,5 @@
 import { useAuth } from "@/lib/auth-context";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, View, ScrollView } from "react-native";
@@ -75,9 +75,9 @@ export default function AuthScreen() {
           <View className="items-center mb-12">
             <View className="w-20 h-20 bg-indigo-100 rounded-2xl justify-center items-center mb-6">
               <MaterialCommunityIcons
-                name="chart-timeline-variant"
-                size={32}
-                color="#6366f1"
+                name="star-shooting-outline"
+                size={24}
+                color="black"
               />
             </View>
             <Text

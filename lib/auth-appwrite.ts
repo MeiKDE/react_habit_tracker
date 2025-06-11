@@ -170,10 +170,35 @@ export class AuthService {
     }
   }
 
+  // Helper method to check if user has a valid session without triggering guest errors
+  static async hasValidSession(): Promise<boolean> {
+    try {
+      const session = await account.getSession("current");
+      return !!(session && session.$id);
+    } catch (error) {
+      return false;
+    }
+  }
+
   // Get current user
   static async getCurrentUser() {
     try {
       log("Getting current user");
+
+      // First, check if we have a valid session to avoid 401 guest errors
+      try {
+        const session = await account.getSession("current");
+        if (!session || !session.$id) {
+          log("No valid session found");
+          return null;
+        }
+        log("Valid session found, proceeding to get user");
+      } catch (sessionError: any) {
+        // No session exists - this is normal for unauthenticated users
+        log("No current session - user is not authenticated");
+        return null;
+      }
+
       const user = await account.get();
 
       if (!user || !user.$id) {

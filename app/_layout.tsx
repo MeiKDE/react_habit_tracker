@@ -1,4 +1,6 @@
 import React, { useEffect } from "react";
+import "@/lib/suppress-warnings"; // Import warning suppression first
+import "@/lib/web-config"; // Import web config early to patch animations
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { HabitsProvider } from "@/lib/habits-context";
 import { Stack, useRouter, useSegments } from "expo-router";
@@ -7,15 +9,6 @@ import { PaperProvider, MD3LightTheme } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import "../global.css";
-
-// Suppress deprecation warnings from dependencies
-import { LogBox } from "react-native";
-LogBox.ignoreLogs([
-  "props.pointerEvents is deprecated. Use style.pointerEvents",
-  '"shadow*" style props are deprecated. Use "boxShadow"',
-  // Add any other warnings that might appear
-  "VirtualizedLists should never be nested",
-]);
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
