@@ -1,48 +1,36 @@
 import { Client, Account, Databases, ID, Query } from "appwrite";
-import Constants from "expo-constants";
+import { ENV_CONFIG, validateConfig, debugConfig } from "../config/env";
+
+// Validate configuration on import
+if (!validateConfig()) {
+  console.error("❌ Appwrite configuration validation failed");
+}
+
+// Debug configuration in development
+debugConfig();
 
 // Environment variables configuration
-const APPWRITE_ENDPOINT =
-  Constants.expoConfig?.extra?.APPWRITE_ENDPOINT ||
-  process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT ||
-  "https://fra.cloud.appwrite.io/v1";
+const APPWRITE_ENDPOINT = ENV_CONFIG.APPWRITE_ENDPOINT;
+const APPWRITE_PROJECT_ID = ENV_CONFIG.APPWRITE_PROJECT_ID;
+const APPWRITE_DATABASE_ID = ENV_CONFIG.APPWRITE_DATABASE_ID;
 
-const APPWRITE_PROJECT_ID =
-  Constants.expoConfig?.extra?.APPWRITE_PROJECT_ID ||
-  process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID ||
-  "";
-
-const APPWRITE_DATABASE_ID =
-  Constants.expoConfig?.extra?.APPWRITE_DATABASE_ID ||
-  process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID ||
-  "";
-
-// Collections IDs
+// Collections IDs (matching NextJS structure)
 export const COLLECTIONS = {
-  USERS:
-    Constants.expoConfig?.extra?.APPWRITE_USERS_COLLECTION_ID ||
-    process.env.EXPO_PUBLIC_APPWRITE_USERS_COLLECTION_ID ||
-    "users",
-  HABITS:
-    Constants.expoConfig?.extra?.APPWRITE_HABITS_COLLECTION_ID ||
-    process.env.EXPO_PUBLIC_APPWRITE_HABITS_COLLECTION_ID ||
-    "habits",
-  HABIT_COMPLETIONS:
-    Constants.expoConfig?.extra?.APPWRITE_HABIT_COMPLETIONS_COLLECTION_ID ||
-    process.env.EXPO_PUBLIC_APPWRITE_HABIT_COMPLETIONS_COLLECTION_ID ||
-    "habit_completions",
+  USERS: ENV_CONFIG.USERS_COLLECTION_ID,
+  HABITS: ENV_CONFIG.HABITS_COLLECTION_ID,
+  HABIT_COMPLETIONS: ENV_CONFIG.HABIT_COMPLETIONS_COLLECTION_ID,
 };
 
-// Initialize Appwrite client
+// Initialize Appwrite client (matching NextJS structure)
 export const client = new Client()
   .setEndpoint(APPWRITE_ENDPOINT)
   .setProject(APPWRITE_PROJECT_ID);
 
-// Initialize services
+// Initialize services (matching NextJS structure)
 export const account = new Account(client);
 export const databases = new Databases(client);
 
-// Helper constants
+// Helper constants (matching NextJS structure)
 export const DATABASE_ID = APPWRITE_DATABASE_ID;
 export { ID, Query };
 

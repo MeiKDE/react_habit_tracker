@@ -26,9 +26,28 @@ export default function AddHabitScreen() {
   const router = useRouter();
   const theme = useTheme();
 
-  const handleSubmit = async () => {
-    if (!user) return;
+  // Debug: Log the current state values
+  const isButtonDisabled = !title.trim() || !description.trim() || loading;
+  console.log("🔍 [DEBUG] Button state:", {
+    title: `"${title}"`,
+    titleTrimmed: `"${title.trim()}"`,
+    titleValid: !!title.trim(),
+    description: `"${description}"`,
+    descriptionTrimmed: `"${description.trim()}"`,
+    descriptionValid: !!description.trim(),
+    loading,
+    user: !!user,
+    userEmail: user?.email || "Not authenticated",
+    isButtonDisabled,
+  });
 
+  const handleSubmit = async () => {
+    if (!user) {
+      console.error("🚨 [DEBUG] No user found, cannot create habit");
+      return;
+    }
+
+    console.log("🚀 [DEBUG] Starting habit creation...");
     setLoading(true);
     setError("");
 
@@ -39,9 +58,10 @@ export default function AddHabitScreen() {
         frequency: frequency.toUpperCase() as "DAILY" | "WEEKLY" | "MONTHLY",
       });
 
-      console.log("Habit created successfully");
+      console.log("✅ [DEBUG] Habit created successfully");
       router.back();
     } catch (error) {
+      console.error("❌ [DEBUG] Error creating habit:", error);
       if (error instanceof Error) {
         setError(error.message);
       } else {
@@ -80,6 +100,24 @@ export default function AddHabitScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View className="flex-1 px-6 py-8 justify-center">
+          {/* Debug Info - Remove this after debugging */}
+          {__DEV__ && (
+            <View className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+              <Text className="text-yellow-800 text-xs font-mono">
+                🐛 DEBUG INFO{"\n"}
+                Title: &quot;{title}&quot; (valid: {title.trim() ? "✅" : "❌"})
+                {"\n"}
+                Description: &quot;{description}&quot; (valid:{" "}
+                {description.trim() ? "✅" : "❌"}){"\n"}
+                Loading: {loading ? "⏳" : "✅"}
+                {"\n"}
+                User: {user ? `✅ ${user.email}` : "❌ Not authenticated"}
+                {"\n"}
+                Button: {isButtonDisabled ? "🔒 DISABLED" : "🔓 ENABLED"}
+              </Text>
+            </View>
+          )}
+
           {/* Form Card */}
           <View className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             {/* Title Input */}
@@ -91,7 +129,10 @@ export default function AddHabitScreen() {
                 placeholder="e.g., Drink 8 glasses of water"
                 mode="outlined"
                 value={title}
-                onChangeText={setTitle}
+                onChangeText={(text) => {
+                  console.log("🔍 [DEBUG] Title changed to:", `"${text}"`);
+                  setTitle(text);
+                }}
                 disabled={loading}
                 outlineColor="#e2e8f0"
                 activeOutlineColor="#6366f1"
@@ -109,7 +150,13 @@ export default function AddHabitScreen() {
                 placeholder="Describe your habit and why it's important to you"
                 mode="outlined"
                 value={description}
-                onChangeText={setDescription}
+                onChangeText={(text) => {
+                  console.log(
+                    "🔍 [DEBUG] Description changed to:",
+                    `"${text}"`
+                  );
+                  setDescription(text);
+                }}
                 disabled={loading}
                 multiline
                 numberOfLines={3}

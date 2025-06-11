@@ -21,6 +21,16 @@
               "NSExceptionRequiresForwardSecrecy": false,
               "NSExceptionMinimumTLSVersion": "1.2",
               "NSIncludesSubdomains": true
+            },
+            "fra.cloud.appwrite.io": {
+              "NSExceptionRequiresForwardSecrecy": false,
+              "NSExceptionMinimumTLSVersion": "1.2",
+              "NSIncludesSubdomains": true
+            },
+            "localhost": {
+              "NSExceptionAllowsInsecureHTTPLoads": true,
+              "NSExceptionMinimumTLSVersion": "1.0",
+              "NSIncludesSubdomains": true
             }
           }
         },
@@ -38,7 +48,7 @@
       "package": "com.yourcompany.habittracker",
       "versionCode": 1,
       "edgeToEdgeEnabled": true,
-      "usesCleartextTraffic": false,
+      "usesCleartextTraffic": true,
       "permissions": ["android.permission.INTERNET"],
       "statusBarStyle": "dark"
     },
@@ -65,13 +75,7 @@
     "extra": {
       "eas": {
         "projectId": "your-project-id-here"
-      },
-      "APPWRITE_ENDPOINT": "https://fra.cloud.appwrite.io/v1",
-      "APPWRITE_PROJECT_ID": "683db415003b8b011313",
-      "APPWRITE_DATABASE_ID": "683e6cb10010f47ea863",
-      "APPWRITE_USERS_COLLECTION_ID": "users",
-      "APPWRITE_HABITS_COLLECTION_ID": "habits",
-      "APPWRITE_HABIT_COMPLETIONS_COLLECTION_ID": "habit_completions"
+      }
     },
     "privacy": "public"
   }
