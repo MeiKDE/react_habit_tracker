@@ -1,8 +1,7 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { HabitsProvider } from "@/lib/habits-context";
 import { Stack, useRouter, useSegments } from "expo-router";
-import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { PaperProvider, MD3LightTheme } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";

@@ -1,10 +1,9 @@
 import { useAuth } from "@/lib/auth-context";
-import { ConnectionTest } from "@/components/ConnectionTest";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, View, ScrollView } from "react-native";
-import { Button, Text, TextInput, useTheme, Switch } from "react-native-paper";
+import { Button, Text, TextInput, useTheme } from "react-native-paper";
 
 export default function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState<boolean>(false);
@@ -12,7 +11,6 @@ export default function AuthScreen() {
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [error, setError] = useState<string>("");
-  const [showConnectionTest, setShowConnectionTest] = useState<boolean>(false);
 
   const theme = useTheme();
   const router = useRouter();
@@ -51,16 +49,6 @@ export default function AuthScreen() {
         return;
       }
       router.replace("/");
-    }
-  };
-
-  const handleClearSessions = async () => {
-    try {
-      await clearSessions();
-      setError("");
-      alert("All sessions cleared successfully");
-    } catch (error) {
-      setError("Failed to clear sessions");
     }
   };
 
@@ -107,29 +95,6 @@ export default function AuthScreen() {
 
           {/* Main Form Card */}
           <View className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
-            {/* Connection Test Toggle */}
-            <View className="flex-row items-center justify-between mb-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <View className="flex-1">
-                <Text className="font-semibold text-slate-700 mb-1">
-                  Connection Test
-                </Text>
-                <Text className="text-xs text-slate-500">
-                  Check server connectivity
-                </Text>
-              </View>
-              <Switch
-                value={showConnectionTest}
-                onValueChange={setShowConnectionTest}
-              />
-            </View>
-
-            {/* Connection Test Component */}
-            {showConnectionTest ? (
-              <View className="mb-6">
-                <ConnectionTest />
-              </View>
-            ) : null}
-
             {/* Form Fields */}
             <View className="space-y-4">
               {/* Email Input */}
@@ -228,17 +193,6 @@ export default function AuthScreen() {
               {isSignUp
                 ? "Already have an account? Sign In"
                 : "Don't have an account? Sign Up"}
-            </Button>
-
-            {/* Debug: Clear Sessions Button */}
-            <Button
-              mode="outlined"
-              onPress={handleClearSessions}
-              className="mt-4 border-amber-500"
-              textColor="#f59e0b"
-              icon="debug-step-over"
-            >
-              Clear All Sessions (Debug)
             </Button>
           </View>
 
