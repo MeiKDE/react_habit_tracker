@@ -1,46 +1,75 @@
 import Constants from "expo-constants";
 
+// Helper function to get required environment variable
+const getRequiredEnvVar = (key: string, envKey: string): string => {
+  const value = Constants.expoConfig?.extra?.[key] || process.env[envKey];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${envKey}`);
+  }
+  return value;
+};
+
+// Helper function to get optional environment variable with fallback
+const getOptionalEnvVar = (
+  key: string,
+  envKey: string,
+  fallback: string
+): string => {
+  return Constants.expoConfig?.extra?.[key] || process.env[envKey] || fallback;
+};
+
 // Environment configuration for React Native/Expo
 export const ENV_CONFIG = {
   // Appwrite API endpoint
-  APPWRITE_ENDPOINT:
-    Constants.expoConfig?.extra?.APPWRITE_ENDPOINT ||
-    process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT ||
-    "https://fra.cloud.appwrite.io/v1",
+  APPWRITE_ENDPOINT: getRequiredEnvVar(
+    "APPWRITE_ENDPOINT",
+    "EXPO_PUBLIC_APPWRITE_ENDPOINT"
+  ),
 
   // Appwrite project ID
-  APPWRITE_PROJECT_ID:
-    Constants.expoConfig?.extra?.APPWRITE_PROJECT_ID ||
-    process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID ||
-    "683db415003b8b011313",
+  APPWRITE_PROJECT_ID: getRequiredEnvVar(
+    "APPWRITE_PROJECT_ID",
+    "EXPO_PUBLIC_APPWRITE_PROJECT_ID"
+  ),
 
   // Appwrite database ID
-  APPWRITE_DATABASE_ID:
-    Constants.expoConfig?.extra?.APPWRITE_DATABASE_ID ||
-    process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID ||
-    "683e6cb10010f47ea863",
+  APPWRITE_DATABASE_ID: getRequiredEnvVar(
+    "APPWRITE_DATABASE_ID",
+    "EXPO_PUBLIC_APPWRITE_DATABASE_ID"
+  ),
 
   // Collection IDs
-  USERS_COLLECTION_ID:
-    Constants.expoConfig?.extra?.APPWRITE_USERS_COLLECTION_ID ||
-    process.env.EXPO_PUBLIC_APPWRITE_USERS_COLLECTION_ID ||
-    "users",
+  USERS_COLLECTION_ID: getOptionalEnvVar(
+    "APPWRITE_USERS_COLLECTION_ID",
+    "EXPO_PUBLIC_APPWRITE_USERS_COLLECTION_ID",
+    "users"
+  ),
 
-  HABITS_COLLECTION_ID:
-    Constants.expoConfig?.extra?.APPWRITE_HABITS_COLLECTION_ID ||
-    process.env.EXPO_PUBLIC_APPWRITE_HABITS_COLLECTION_ID ||
-    "habits",
+  HABITS_COLLECTION_ID: getOptionalEnvVar(
+    "APPWRITE_HABITS_COLLECTION_ID",
+    "EXPO_PUBLIC_APPWRITE_HABITS_COLLECTION_ID",
+    "habits"
+  ),
 
-  HABIT_COMPLETIONS_COLLECTION_ID:
-    Constants.expoConfig?.extra?.APPWRITE_HABIT_COMPLETIONS_COLLECTION_ID ||
-    process.env.EXPO_PUBLIC_APPWRITE_HABIT_COMPLETIONS_COLLECTION_ID ||
-    "habit_completions",
+  HABIT_COMPLETIONS_COLLECTION_ID: getOptionalEnvVar(
+    "APPWRITE_HABIT_COMPLETIONS_COLLECTION_ID",
+    "EXPO_PUBLIC_APPWRITE_HABIT_COMPLETIONS_COLLECTION_ID",
+    "habit_completions"
+  ),
 
   // API URL for mobile app
-  API_URL: process.env.EXPO_PUBLIC_API_URL || "http://localhost:8081",
+  API_URL: getOptionalEnvVar(
+    "",
+    "EXPO_PUBLIC_API_URL",
+    "http://localhost:8081"
+  ),
 
   // Frontend URL for CORS
-  FRONTEND_URL: process.env.EXPO_PUBLIC_FRONTEND_URL || "http://localhost:3000",
+  FRONTEND_URL: getOptionalEnvVar(
+    "",
+    "EXPO_PUBLIC_FRONTEND_URL",
+    "http://localhost:3000"
+  ),
 
   // Environment
   NODE_ENV: process.env.NODE_ENV || "development",

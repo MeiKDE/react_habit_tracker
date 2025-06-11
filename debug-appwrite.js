@@ -1,12 +1,27 @@
 const { Client, Account, Users } = require("node-appwrite");
+require("dotenv").config();
 
-// Configuration from React Native app.json
+// Configuration from environment variables
+const APPWRITE_ENDPOINT =
+  process.env.APPWRITE_ENDPOINT || "https://cloud.appwrite.io/v1";
+const APPWRITE_PROJECT_ID = process.env.APPWRITE_PROJECT_ID;
+const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY;
+
+// Validate required environment variables
+if (!APPWRITE_PROJECT_ID) {
+  console.error("❌ Missing APPWRITE_PROJECT_ID environment variable");
+  process.exit(1);
+}
+
+if (!APPWRITE_API_KEY) {
+  console.error("❌ Missing APPWRITE_API_KEY environment variable");
+  process.exit(1);
+}
+
 const client = new Client()
-  .setEndpoint("https://fra.cloud.appwrite.io/v1")
-  .setProject("683db415003b8b011313")
-  .setKey(
-    "standard_d50d7dd231417804d0876ea33bee8a8c503d38d172f30ed10592e942ded53926a86650a4c96e824fb15af29eebb622a40c009d6efb106e736efe8b290413b5b659637f542433c706b654f3feb2aadd5e3d235e16b2946de67f52745610e8b09f64d37b969522a124b9cb3cb5ef2c5614c2bf4cf332412f4dabfd61dd9d19c7d2"
-  );
+  .setEndpoint(APPWRITE_ENDPOINT)
+  .setProject(APPWRITE_PROJECT_ID)
+  .setKey(APPWRITE_API_KEY);
 
 const users = new Users(client);
 const account = new Account(client);
@@ -14,8 +29,8 @@ const account = new Account(client);
 async function debugAppwrite() {
   try {
     console.log("🔍 Testing Appwrite Connection...");
-    console.log("Endpoint:", "https://fra.cloud.appwrite.io/v1");
-    console.log("Project ID:", "683db415003b8b011313");
+    console.log("Endpoint:", APPWRITE_ENDPOINT);
+    console.log("Project ID:", APPWRITE_PROJECT_ID.substring(0, 8) + "...");
 
     // List all users in the auth system
     console.log("\n📋 Listing users in Appwrite Auth system...");

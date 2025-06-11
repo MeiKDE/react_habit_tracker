@@ -1,11 +1,28 @@
 const { Client, Databases, Permission, Role } = require("node-appwrite");
+require("dotenv").config();
 
-// Configuration - UPDATE THESE VALUES
-const APPWRITE_ENDPOINT = "https://cloud.appwrite.io/v1";
-const APPWRITE_PROJECT_ID = "683db415003b8b011313"; // Replace with your actual project ID
-const APPWRITE_API_KEY =
-  "standard_d50d7dd231417804d0876ea33bee8a8c503d38d172f30ed10592e942ded53926a86650a4c96e824fb15af29eebb622a40c009d6efb106e736efe8b290413b5b659637f542433c706b654f3feb2aadd5e3d235e16b2946de67f52745610e8b09f64d37b969522a124b9cb3cb5ef2c5614c2bf4cf332412f4dabfd61dd9d19c7d2"; // Replace with your API key
-const DATABASE_ID = "683e6cb10010f47ea863"; // Replace with your database ID
+// Configuration from environment variables
+const APPWRITE_ENDPOINT =
+  process.env.APPWRITE_ENDPOINT || "https://cloud.appwrite.io/v1";
+const APPWRITE_PROJECT_ID = process.env.APPWRITE_PROJECT_ID;
+const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY;
+const DATABASE_ID = process.env.APPWRITE_DATABASE_ID;
+
+// Validate required environment variables
+if (!APPWRITE_PROJECT_ID) {
+  console.error("❌ Missing APPWRITE_PROJECT_ID environment variable");
+  process.exit(1);
+}
+
+if (!APPWRITE_API_KEY) {
+  console.error("❌ Missing APPWRITE_API_KEY environment variable");
+  process.exit(1);
+}
+
+if (!DATABASE_ID) {
+  console.error("❌ Missing APPWRITE_DATABASE_ID environment variable");
+  process.exit(1);
+}
 
 // Initialize Appwrite client
 const client = new Client()

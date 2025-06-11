@@ -2,6 +2,57 @@
 
 A cross-platform habit tracking app built with React Native and Expo, designed to work with a shared Next.js backend.
 
+## 🔐 CRITICAL: Security Setup Required
+
+⚠️ **Before running the app, you MUST set up environment variables!**
+
+All sensitive information has been removed from the codebase for security. You need to create a `.env` file:
+
+### 1. Create `.env` file in the project root:
+
+```bash
+# Appwrite Configuration (for setup scripts)
+APPWRITE_ENDPOINT=https://fra.cloud.appwrite.io/v1
+APPWRITE_PROJECT_ID=your_actual_project_id_here
+APPWRITE_DATABASE_ID=your_actual_database_id_here
+APPWRITE_API_KEY=your_actual_api_key_here
+
+# For Expo React Native App
+EXPO_PUBLIC_APPWRITE_ENDPOINT=https://fra.cloud.appwrite.io/v1
+EXPO_PUBLIC_APPWRITE_PROJECT_ID=your_actual_project_id_here
+EXPO_PUBLIC_APPWRITE_DATABASE_ID=your_actual_database_id_here
+EXPO_PUBLIC_APPWRITE_USERS_COLLECTION_ID=users
+EXPO_PUBLIC_APPWRITE_HABITS_COLLECTION_ID=habits
+EXPO_PUBLIC_APPWRITE_HABIT_COMPLETIONS_COLLECTION_ID=habit_completions
+
+# API Configuration
+EXPO_PUBLIC_API_URL=http://localhost:8081
+EXPO_PUBLIC_FRONTEND_URL=http://localhost:3000
+
+# Testing (optional)
+TEST_EMAIL=your_test_email@example.com
+
+# Environment
+NODE_ENV=development
+```
+
+### 2. Get your values from Appwrite Console:
+
+- **Project ID**: Appwrite Console → Settings → General
+- **Database ID**: Appwrite Console → Databases → Your Database
+- **API Key**: Appwrite Console → Settings → API Keys (create new server key)
+
+### 3. Files secured:
+
+- ✅ `config/env.ts` - Now requires environment variables
+- ✅ `create-appwrite-collections.js` - Uses env vars
+- ✅ `debug-appwrite.js` - Uses env vars
+- ✅ `test-signin.js` - Uses env vars
+
+⚠️ **NEVER commit the `.env` file to version control!** (It's already in `.gitignore`)
+
+---
+
 ## Features
 
 - 📱 Cross-platform (iOS, Android, Web)
@@ -146,72 +197,4 @@ react-native-habit-tracker/
 
 The app integrates with the following Next.js API endpoints:
 
-- `POST /api/auth/signup` - Create user account
-- `POST /api/auth/signin` - Sign in user
-- `GET /api/habits` - Get user's habits
-- `POST /api/habits` - Create new habit
-- `PUT /api/habits/[id]` - Update habit
-- `DELETE /api/habits/[id]` - Delete habit
-- `POST /api/habits/[id]/complete` - Mark habit complete
-- `GET /api/habits/[id]/completions` - Get completions
-
-## Troubleshooting
-
-### Connection Issues
-
-1. **"Network request failed"**
-
-   - Ensure Next.js backend is running (`npm run dev`)
-   - Check API URL in `config/api.ts`
-   - Use connection test in the app
-
-2. **Android Emulator Issues**
-
-   - Use `10.0.2.2` instead of `localhost`
-   - Enable network access in emulator settings
-
-3. **Physical Device Issues**
-   - Use your computer's IP address
-   - Ensure both devices are on the same network
-   - Check firewall settings
-
-### Authentication Issues
-
-1. **"Unauthorized" errors**
-
-   - Clear app data and sign in again
-   - Check if backend is properly configured
-   - Verify JWT token storage
-
-2. **User not found after signup**
-   - Check Appwrite connection in Next.js app
-   - Verify Appwrite collections are properly set up
-
-## Shared Features with Next.js App
-
-Both the React Native and Next.js apps share:
-
-- User accounts and authentication
-- Habit data and progress tracking
-- Real-time synchronization
-- Consistent data structure
-- Same backend API
-
-## Production Deployment
-
-1. Update production API URL in `config/api.ts`
-2. Build the app: `expo build`
-3. Deploy to app stores or web hosting
-4. Ensure backend is deployed and accessible
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test with both local and remote backends
-5. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details
+- `
