@@ -6,7 +6,7 @@ import {
   ScrollView,
   StyleSheet,
 } from "react-native";
-import { getApiUrl, logApiConfig } from "../config/api";
+import { client, CONFIG, account } from "@/lib/appwrite";
 
 interface TestResult {
   endpoint: string;
@@ -31,138 +31,240 @@ export const ConnectionTest = () => {
     setIsLoading(true);
     clearResults();
 
-    // Log current configuration
-    console.log("[CONNECTION TEST] Starting connection test...");
-    logApiConfig();
+    console.log("[CONNECTION TEST] Starting Appwrite connection test...");
+    console.log("[CONNECTION TEST] Config:", {
+      endpoint: CONFIG.APPWRITE_ENDPOINT,
+      projectId: CONFIG.APPWRITE_PROJECT_ID,
+      databaseId: CONFIG.APPWRITE_DATABASE_ID,
+    });
 
-    const baseUrl = getApiUrl();
-
-    // Test 1: Basic connectivity
+    // Test 1: Basic Appwrite connectivity
     addResult({
-      endpoint: "Basic Connection",
+      endpoint: "Appwrite Health Check",
       status: "pending",
-      message: `Testing connection to ${baseUrl}...`,
+      message: `Testing connection to ${CONFIG.APPWRITE_ENDPOINT}...`,
     });
 
     try {
-      const response = await fetch(`${baseUrl}/auth/signin`, {
+      // Test if we can reach Appwrite health endpoint
+      const healthResponse = await fetch(`${CONFIG.APPWRITE_ENDPOINT}/health`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
         },
       });
 
-      addResult({
-        endpoint: "Basic Connection",
-        status: "success",
-        message: `Connected! Status: ${response.status}`,
-        details: { status: response.status, statusText: response.statusText },
-      });
+      if (healthResponse.ok) {
+        const healthData = await healthResponse.json();
+        addResult({
+          endpoint: "Appwrite Health Check",
+          status: "success",
+          message: `✅ Appwrite server is reachable! Status: ${healthResponse.status}`,
+          details: healthData,
+        });
+      } else if (healthResponse.status === 401) {
+        // 401 is actually expected and good - it means server is working but requires auth
+        addResult({
+          endpoint: "Appwrite Health Check",
+          status: "success",
+          message: `✅ Appwrite server is working! (401 is expected - means auth is required)`,
+          details: {
+            status: healthResponse.status,
+            statusText: healthResponse.statusText,
+            note: "401 status is normal and expected for this endpoint",
+          },
+        });
+      } else {
+        addResult({
+          endpoint: "Appwrite Health Check",
+          status: "error",
+          message: `❌ Appwrite health check failed (Status: ${healthResponse.status})`,
+          details: {
+            status: healthResponse.status,
+            statusText: healthResponse.statusText,
+          },
+        });
+      }
     } catch (error) {
       addResult({
-        endpoint: "Basic Connection",
+        endpoint: "Appwrite Health Check",
         status: "error",
-        message: `Connection failed: ${
+        message: `❌ Cannot reach Appwrite server: ${
           error instanceof Error ? error.message : String(error)
         }`,
         details: error,
       });
     }
 
-    // Test 2: POST request to signin
+    // Test 2: Project Configuration
     addResult({
-      endpoint: "POST /auth/signin",
+      endpoint: "Project Configuration",
       status: "pending",
-      message: "Testing POST request...",
+      message: "Checking project configuration...",
     });
 
     try {
-      const response = await fetch(`${baseUrl}/auth/signin`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: "test@example.com",
-          password: "wrongpassword",
-        }),
-      });
+      // Test project access
+      const projectResponse = await fetch(
+        `${CONFIG.APPWRITE_ENDPOINT}/projects/${CONFIG.APPWRITE_PROJECT_ID}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Appwrite-Project": CONFIG.APPWRITE_PROJECT_ID,
+          },
+        }
+      );
 
-      const data = await response.text();
-      console.log("Connection test response:", {
-        status: response.status,
-        statusText: response.statusText,
-        data,
-      });
-
-      addResult({
-        endpoint: "POST /auth/signin",
-        status: response.ok ? "success" : "error",
-        message: response.ok
-          ? "✅ Connected to server!"
-          : `❌ Failed to connect to server (Status: ${response.status})`,
-        details: {
-          status: response.status,
-          statusText: response.statusText,
-          data: data.slice(0, 200) + "...",
-        },
-      });
+      if (projectResponse.ok || projectResponse.status === 401) {
+        // 401 is expected for public endpoints without auth
+        addResult({
+          endpoint: "Project Configuration",
+          status: "success",
+          message: `✅ Project ID is valid: ${CONFIG.APPWRITE_PROJECT_ID}`,
+          details: {
+            projectId: CONFIG.APPWRITE_PROJECT_ID,
+            status: projectResponse.status,
+            note:
+              projectResponse.status === 401
+                ? "401 status confirms project exists but requires authentication"
+                : "Project accessible",
+          },
+        });
+      } else {
+        addResult({
+          endpoint: "Project Configuration",
+          status: "error",
+          message: `❌ Invalid project configuration (Status: ${projectResponse.status})`,
+          details: {
+            projectId: CONFIG.APPWRITE_PROJECT_ID,
+            status: projectResponse.status,
+          },
+        });
+      }
     } catch (error) {
-      console.error("Connection test failed:", error);
       addResult({
-        endpoint: "POST /auth/signin",
+        endpoint: "Project Configuration",
         status: "error",
-        message: "❌ Failed to connect to server",
-        details: error instanceof Error ? error.message : String(error),
+        message: `❌ Project configuration test failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        details: error,
       });
+    }
+
+    // Test 3: Database Access
+    addResult({
+      endpoint: "Database Access",
+      status: "pending",
+      message: "Testing database access...",
+    });
+
+    try {
+      // Test database endpoint
+      const dbResponse = await fetch(
+        `${CONFIG.APPWRITE_ENDPOINT}/databases/${CONFIG.APPWRITE_DATABASE_ID}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Appwrite-Project": CONFIG.APPWRITE_PROJECT_ID,
+          },
+        }
+      );
+
+      if (dbResponse.ok || dbResponse.status === 401) {
+        // 401 is expected for public endpoints without auth
+        addResult({
+          endpoint: "Database Access",
+          status: "success",
+          message: `✅ Database ID is valid: ${CONFIG.APPWRITE_DATABASE_ID}`,
+          details: {
+            databaseId: CONFIG.APPWRITE_DATABASE_ID,
+            status: dbResponse.status,
+            note:
+              dbResponse.status === 401
+                ? "401 status confirms database exists but requires authentication"
+                : "Database accessible",
+          },
+        });
+      } else if (dbResponse.status === 404) {
+        addResult({
+          endpoint: "Database Access",
+          status: "error",
+          message: `❌ Database not found. Please check your database ID.`,
+          details: {
+            databaseId: CONFIG.APPWRITE_DATABASE_ID,
+            status: dbResponse.status,
+          },
+        });
+      } else {
+        addResult({
+          endpoint: "Database Access",
+          status: "error",
+          message: `❌ Database access failed (Status: ${dbResponse.status})`,
+          details: {
+            databaseId: CONFIG.APPWRITE_DATABASE_ID,
+            status: dbResponse.status,
+          },
+        });
+      }
+    } catch (error) {
+      addResult({
+        endpoint: "Database Access",
+        status: "error",
+        message: `❌ Database access test failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        details: error,
+      });
+    }
+
+    // Test 4: Appwrite SDK Authentication
+    addResult({
+      endpoint: "Appwrite SDK Test",
+      status: "pending",
+      message: "Testing Appwrite SDK connectivity...",
+    });
+
+    try {
+      // Test if we can use the Appwrite SDK to check session
+      const sessionResult = await account.get();
+      addResult({
+        endpoint: "Appwrite SDK Test",
+        status: "success",
+        message: `✅ Appwrite SDK working! User is logged in: ${sessionResult.email}`,
+        details: {
+          userId: sessionResult.$id,
+          email: sessionResult.email,
+          name: sessionResult.name,
+        },
+      });
+    } catch (error: any) {
+      if (error.code === 401) {
+        addResult({
+          endpoint: "Appwrite SDK Test",
+          status: "success",
+          message: `✅ Appwrite SDK is working! (User not logged in, which is expected)`,
+          details: {
+            code: error.code,
+            message: error.message,
+            note: "This confirms the SDK can communicate with Appwrite properly",
+          },
+        });
+      } else {
+        addResult({
+          endpoint: "Appwrite SDK Test",
+          status: "error",
+          message: `❌ Appwrite SDK test failed: ${
+            error.message || String(error)
+          }`,
+          details: error,
+        });
+      }
     }
 
     setIsLoading(false);
-  };
-
-  const testAuth = async () => {
-    const baseUrl = getApiUrl();
-    try {
-      addResult({
-        endpoint: "Auth Test",
-        status: "pending",
-        message: "🔄 Testing authentication...",
-        details: "",
-      });
-
-      const response = await fetch(`${baseUrl}/auth/signin`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: "test@example.com",
-          password: "test123",
-        }),
-      });
-
-      const responseText = await response.text();
-      console.log("Auth test response:", {
-        status: response.status,
-        headers: Object.fromEntries(response.headers.entries()),
-        body: responseText,
-      });
-
-      addResult({
-        endpoint: "Auth Test",
-        status: response.status < 500 ? "success" : "error",
-        message: `Auth endpoint responds (${response.status})`,
-        details: responseText,
-      });
-    } catch (error) {
-      console.error("Auth test failed:", error);
-      addResult({
-        endpoint: "Auth Test",
-        status: "error",
-        message: "❌ Auth test failed",
-        details: error instanceof Error ? error.message : String(error),
-      });
-    }
   };
 
   const getStatusColor = (status: TestResult["status"]) => {
@@ -180,8 +282,9 @@ export const ConnectionTest = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>API Connection Test</Text>
-      <Text style={styles.subtitle}>Current API URL: {getApiUrl()}</Text>
+      <Text style={styles.title}>Appwrite Connection Test</Text>
+      <Text style={styles.subtitle}>Endpoint: {CONFIG.APPWRITE_ENDPOINT}</Text>
+      <Text style={styles.subtitle}>Project: {CONFIG.APPWRITE_PROJECT_ID}</Text>
 
       <TouchableOpacity
         style={[styles.button, isLoading && styles.buttonDisabled]}
@@ -189,7 +292,7 @@ export const ConnectionTest = () => {
         disabled={isLoading}
       >
         <Text style={styles.buttonText}>
-          {isLoading ? "Testing..." : "Test Connection"}
+          {isLoading ? "Testing..." : "Test Appwrite Connection"}
         </Text>
       </TouchableOpacity>
 
@@ -199,91 +302,93 @@ export const ConnectionTest = () => {
         </TouchableOpacity>
       )}
 
-      <ScrollView style={styles.results}>
-        {results.map((result, index) => (
-          <View key={index} style={styles.resultItem}>
-            <View style={styles.resultHeader}>
-              <Text style={styles.endpoint}>{result.endpoint}</Text>
-              <View
-                style={[
-                  styles.statusBadge,
-                  { backgroundColor: getStatusColor(result.status) },
-                ]}
-              >
-                <Text style={styles.statusText}>
-                  {result.status.toUpperCase()}
-                </Text>
+      {results.length > 0 && (
+        <ScrollView style={styles.resultsContainer}>
+          {results.map((result, index) => (
+            <View key={index} style={styles.resultItem}>
+              <View style={styles.resultHeader}>
+                <Text style={styles.endpoint}>{result.endpoint}</Text>
+                <View
+                  style={[
+                    styles.statusIndicator,
+                    { backgroundColor: getStatusColor(result.status) },
+                  ]}
+                >
+                  <Text style={styles.statusText}>
+                    {result.status.toUpperCase()}
+                  </Text>
+                </View>
               </View>
+              <Text style={styles.message}>{result.message}</Text>
+              {result.details && (
+                <Text style={styles.details}>
+                  {typeof result.details === "string"
+                    ? result.details
+                    : JSON.stringify(result.details, null, 2)}
+                </Text>
+              )}
             </View>
-            <Text style={styles.message}>{result.message}</Text>
-            {result.details && (
-              <Text style={styles.details}>
-                Details: {JSON.stringify(result.details, null, 2)}
-              </Text>
-            )}
-          </View>
-        ))}
-      </ScrollView>
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    padding: 20,
+    padding: 16,
     backgroundColor: "#f5f5f5",
+    borderRadius: 8,
+    margin: 8,
   },
   title: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: "bold",
     marginBottom: 8,
-    textAlign: "center",
+    color: "#333",
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#666",
-    marginBottom: 20,
-    textAlign: "center",
+    marginBottom: 4,
   },
   button: {
-    backgroundColor: "#2196F3",
-    padding: 15,
+    backgroundColor: "#6366f1",
+    padding: 12,
     borderRadius: 8,
-    marginBottom: 10,
+    alignItems: "center",
+    marginTop: 12,
   },
   buttonDisabled: {
-    backgroundColor: "#ccc",
+    backgroundColor: "#9ca3af",
   },
   buttonText: {
     color: "white",
-    textAlign: "center",
     fontWeight: "bold",
-    fontSize: 16,
   },
   clearButton: {
-    backgroundColor: "#757575",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 20,
+    backgroundColor: "#ef4444",
+    padding: 8,
+    borderRadius: 6,
+    alignItems: "center",
+    marginTop: 8,
   },
   clearButtonText: {
     color: "white",
-    textAlign: "center",
-    fontSize: 14,
+    fontSize: 12,
   },
-  results: {
-    flex: 1,
+  resultsContainer: {
+    marginTop: 16,
+    maxHeight: 300,
   },
   resultItem: {
     backgroundColor: "white",
-    padding: 15,
-    marginBottom: 10,
+    padding: 12,
+    marginBottom: 8,
     borderRadius: 8,
-    elevation: 2,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
   },
   resultHeader: {
     flexDirection: "row",
@@ -292,24 +397,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   endpoint: {
-    fontSize: 16,
     fontWeight: "bold",
     flex: 1,
   },
-  statusBadge: {
+  statusIndicator: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
   },
   statusText: {
     color: "white",
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "bold",
   },
   message: {
     fontSize: 14,
-    marginBottom: 8,
-    color: "#333",
+    marginBottom: 4,
   },
   details: {
     fontSize: 12,

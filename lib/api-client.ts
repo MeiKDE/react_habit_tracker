@@ -7,6 +7,7 @@ import {
   API_CONFIG,
   logApiConfig,
 } from "../config/api";
+import { account } from "./appwrite";
 
 // API Response types matching Next.js backend
 export interface User {
@@ -126,6 +127,7 @@ export class ApiClient {
         ...(options.headers as Record<string, string>),
       };
 
+      // Add JWT token to Authorization header for protected routes
       if (token) {
         headers.Authorization = `Bearer ${token}`;
       }
@@ -158,6 +160,12 @@ export class ApiClient {
       }
 
       if (!response.ok) {
+        // Handle 401 errors by clearing the token
+        if (response.status === 401) {
+          await this.removeAuthToken();
+          await AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+        }
+
         // Return structured error response
         return {
           success: false,
@@ -198,21 +206,14 @@ export class ApiClient {
           error.message.includes("Network request failed")
         ) {
           errorMessage = "Network connection failed";
-          userFriendlyMessage = `Cannot connect to server at ${getApiUrl()}. Please ensure:\n• Your Next.js backend is running (npm run dev)\n• You're using the correct API URL\n• Your internet connection is stable`;
-        } else if (error.message.includes("ERR_NETWORK")) {
-          errorMessage = "Network error";
           userFriendlyMessage =
-            "Network error. Please check your internet connection and try again.";
+            "Unable to connect to the server. Please check your internet connection and try again.";
         }
 
         return {
           success: false,
           error: errorMessage,
           message: userFriendlyMessage,
-          details: {
-            originalError: error.message,
-            url: `${getApiUrl()}${endpoint}`,
-          },
         };
       }
 
@@ -220,179 +221,284 @@ export class ApiClient {
         success: false,
         error: "Unknown error occurred",
         message: "An unexpected error occurred. Please try again.",
-        details: {
-          originalError: String(error),
-          url: `${getApiUrl()}${endpoint}`,
-        },
       };
     }
   }
 
-  // Auth methods
-  static async signUp(data: SignUpData): Promise<ApiResponse<User>> {
-    const response = await this.makeRequest<User>(API_ENDPOINTS.AUTH.SIGN_UP, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+  // Authentication methods
+  static async signUp(data: SignUpData): Promise<ApiResponse<SignInResponse>> {
+    const response = await this.makeRequest<SignInResponse>(
+      API_ENDPOINTS.AUTH.SIGN_UP,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
+
+    // Store the token and user data if signup is successful
+    if (response.success && response.data) {
+      await this.setAuthToken(response.data.accessToken);
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.CURRENT_USER,
+        JSON.stringify(response.data.user)
+      );
+    }
+
     return response;
   }
 
   static async signIn(data: SignInData): Promise<ApiResponse<SignInResponse>> {
-    const response = await this.makeRequest<SignInResponse>(
-      API_ENDPOINTS.AUTH.SIGN_IN,
-      {
-        method: "POST",
-        body: JSON.stringify(data),
+    try {
+      console.log(`[API CLIENT] Starting sign in process for: ${data.email}`);
+
+      let session;
+      let currentUser;
+
+      try {
+        // First, check if there's already an active Appwrite session
+        console.log(`[API CLIENT] Checking for existing Appwrite session...`);
+        currentUser = await account.get();
+        console.log(
+          `[API CLIENT] Found existing session for user: ${currentUser.email}`
+        );
+
+        // If the existing user matches the login email, use the existing session
+        if (currentUser.email === data.email) {
+          console.log(`[API CLIENT] Using existing session for same user`);
+          // We don't have the session object, but we can get session list
+          const sessions = await account.listSessions();
+          session =
+            sessions.sessions.find((s) => s.current) || sessions.sessions[0];
+        } else {
+          console.log(
+            `[API CLIENT] Different user, clearing existing session...`
+          );
+          // Different user, clear the existing session
+          await account.deleteSession("current");
+          throw new Error("NEED_NEW_SESSION"); // This will trigger the catch block
+        }
+      } catch (error: any) {
+        // No existing session or need to create new session
+        console.log(`[API CLIENT] Creating new Appwrite session...`);
+        session = await account.createEmailPasswordSession(
+          data.email,
+          data.password
+        );
+        console.log(`[API CLIENT] Appwrite session created: ${session.$id}`);
+
+        // Get current user info from Appwrite
+        currentUser = await account.get();
+        console.log(
+          `[API CLIENT] Current user from Appwrite: ${currentUser.$id}`
+        );
       }
-    );
 
-    // Store token if signin was successful
-    if (response.success && response.data?.accessToken) {
-      await this.setAuthToken(response.data.accessToken);
+      // Now exchange the Appwrite session for a JWT token from our API
+      console.log(`[API CLIENT] Exchanging session for JWT token...`);
+      const response = await this.makeRequest<SignInResponse>(
+        API_ENDPOINTS.AUTH.SIGN_IN,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            email: currentUser.email,
+            appwriteUserId: currentUser.$id,
+            sessionId: session?.$id || "existing-session",
+          }),
+        }
+      );
+
+      // If JWT creation fails, clean up the Appwrite session (only if we created it)
+      if (!response.success) {
+        if (session && session.$id !== "existing-session") {
+          try {
+            await account.deleteSession(session.$id);
+            console.log(
+              `[API CLIENT] Cleaned up Appwrite session after JWT failure`
+            );
+          } catch (cleanupError) {
+            console.error(
+              `[API CLIENT] Failed to cleanup Appwrite session:`,
+              cleanupError
+            );
+          }
+        }
+        return response;
+      }
+
+      // Store the token and user data if login is successful
+      if (response.success && response.data) {
+        await this.setAuthToken(response.data.accessToken);
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.CURRENT_USER,
+          JSON.stringify(response.data.user)
+        );
+        console.log(
+          `[API CLIENT] Sign in successful for user: ${response.data.user.id}`
+        );
+      }
+
+      return response;
+    } catch (error: any) {
+      console.error(`[API CLIENT] Sign in error:`, error);
+
+      // Provide user-friendly error messages
+      let userMessage =
+        "Invalid credentials. Please check the email and password.";
+      if (
+        error.message?.includes("network") ||
+        error.message?.includes("fetch")
+      ) {
+        userMessage = "Network error. Please check your internet connection.";
+      }
+
+      return {
+        success: false,
+        error: error.message || "Authentication failed",
+        message: userMessage,
+      };
     }
-
-    return response;
   }
 
   static async signOut(): Promise<void> {
-    await this.removeAuthToken();
+    try {
+      // First, clean up the Appwrite session
+      try {
+        await account.deleteSession("current");
+        console.log(`[API CLIENT] Appwrite session deleted`);
+      } catch (appwriteError) {
+        console.error(
+          `[API CLIENT] Failed to delete Appwrite session:`,
+          appwriteError
+        );
+        // Continue with local cleanup even if Appwrite cleanup fails
+      }
+
+      // Clean up local storage
+      await this.removeAuthToken();
+      await AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+      console.log(`[API CLIENT] Local auth data cleared`);
+    } catch (error) {
+      console.error(`[API CLIENT] Sign out error:`, error);
+      // Still clear local data even if there are errors
+      await this.removeAuthToken();
+      await AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    }
   }
 
-  // Habit methods
+  // Habit methods - now using JWT authentication
   static async getHabits(): Promise<ApiResponse<Habit[]>> {
-    const response = await this.makeRequest<Habit[]>(API_ENDPOINTS.HABITS.LIST);
-
-    // Convert date strings to Date objects
-    if (response.success && response.data) {
-      response.data = response.data.map((habit: any) => ({
-        ...habit,
-        createdAt: new Date(habit.createdAt),
-        updatedAt: new Date(habit.updatedAt),
-        lastCompleted: habit.lastCompleted
-          ? new Date(habit.lastCompleted)
-          : undefined,
-        completions:
-          habit.completions?.map((completion: any) => ({
-            ...completion,
-            completedAt: new Date(completion.completedAt),
-            createdAt: new Date(completion.createdAt),
-          })) || [],
-      }));
-    }
-
-    return response;
+    return this.makeRequest<Habit[]>(API_ENDPOINTS.HABITS.LIST, {
+      method: "GET",
+    });
   }
 
   static async createHabit(data: CreateHabitData): Promise<ApiResponse<Habit>> {
-    const response = await this.makeRequest<Habit>(
-      API_ENDPOINTS.HABITS.CREATE,
-      {
-        method: "POST",
-        body: JSON.stringify(data),
-      }
-    );
-
-    // Convert date strings to Date objects
-    if (response.success && response.data) {
-      response.data = {
-        ...response.data,
-        createdAt: new Date(response.data.createdAt),
-        updatedAt: new Date(response.data.updatedAt),
-        lastCompleted: response.data.lastCompleted
-          ? new Date(response.data.lastCompleted)
-          : undefined,
-        completions:
-          response.data.completions?.map((completion: any) => ({
-            ...completion,
-            completedAt: new Date(completion.completedAt),
-            createdAt: new Date(completion.createdAt),
-          })) || [],
-      };
-    }
-
-    return response;
+    return this.makeRequest<Habit>(API_ENDPOINTS.HABITS.CREATE, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   }
 
   static async updateHabit(
     habitId: string,
     data: UpdateHabitData
   ): Promise<ApiResponse<Habit>> {
-    const response = await this.makeRequest<Habit>(
-      API_ENDPOINTS.HABITS.UPDATE(habitId),
-      {
-        method: "PUT",
-        body: JSON.stringify(data),
-      }
-    );
-
-    // Convert date strings to Date objects
-    if (response.success && response.data) {
-      response.data = {
-        ...response.data,
-        createdAt: new Date(response.data.createdAt),
-        updatedAt: new Date(response.data.updatedAt),
-        lastCompleted: response.data.lastCompleted
-          ? new Date(response.data.lastCompleted)
-          : undefined,
-      };
-    }
-
-    return response;
+    return this.makeRequest<Habit>(API_ENDPOINTS.HABITS.UPDATE(habitId), {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
   }
 
   static async deleteHabit(habitId: string): Promise<ApiResponse<void>> {
-    return await this.makeRequest<void>(API_ENDPOINTS.HABITS.DELETE(habitId), {
+    return this.makeRequest<void>(API_ENDPOINTS.HABITS.DELETE(habitId), {
       method: "DELETE",
     });
   }
 
-  // Completion methods
   static async createCompletion(
     habitId: string,
     data: CreateCompletionData = {}
   ): Promise<ApiResponse<HabitCompletion>> {
-    const response = await this.makeRequest<HabitCompletion>(
+    return this.makeRequest<HabitCompletion>(
       API_ENDPOINTS.HABITS.COMPLETE(habitId),
       {
         method: "POST",
         body: JSON.stringify(data),
       }
     );
-
-    // Convert date strings to Date objects
-    if (response.success && response.data) {
-      response.data = {
-        ...response.data,
-        completedAt: new Date(response.data.completedAt),
-        createdAt: new Date(response.data.createdAt),
-      };
-    }
-
-    return response;
   }
 
   static async getCompletionsForHabit(
     habitId: string
   ): Promise<ApiResponse<HabitCompletion[]>> {
-    const response = await this.makeRequest<HabitCompletion[]>(
-      API_ENDPOINTS.HABITS.COMPLETIONS(habitId)
+    return this.makeRequest<HabitCompletion[]>(
+      API_ENDPOINTS.HABITS.COMPLETIONS(habitId),
+      {
+        method: "GET",
+      }
     );
-
-    // Convert date strings to Date objects
-    if (response.success && response.data) {
-      response.data = response.data.map((completion: any) => ({
-        ...completion,
-        completedAt: new Date(completion.completedAt),
-        createdAt: new Date(completion.createdAt),
-      }));
-    }
-
-    return response;
   }
 
-  // Utility method to check if we have a valid auth token
+  // Helper method to check if user is authenticated
   static async isAuthenticated(): Promise<boolean> {
-    const token = await this.getAuthToken();
-    return !!token;
+    try {
+      // First check if we have a JWT token
+      const token = await this.getAuthToken();
+      if (token) {
+        console.log(`[API CLIENT] JWT token found`);
+        return true;
+      }
+
+      // If no JWT, check if we have an Appwrite session we can sync
+      console.log(`[API CLIENT] No JWT found, checking Appwrite session...`);
+      const currentUser = await account.get();
+      console.log(
+        `[API CLIENT] Found Appwrite session for: ${currentUser.email}`
+      );
+
+      // Sync the Appwrite session to create a JWT
+      const sessions = await account.listSessions();
+      const currentSession =
+        sessions.sessions.find((s) => s.current) || sessions.sessions[0];
+
+      const syncResponse = await this.makeRequest<SignInResponse>(
+        API_ENDPOINTS.AUTH.SIGN_IN,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            email: currentUser.email,
+            appwriteUserId: currentUser.$id,
+            sessionId: currentSession?.$id || "existing-session",
+          }),
+        }
+      );
+
+      if (syncResponse.success && syncResponse.data) {
+        await this.setAuthToken(syncResponse.data.accessToken);
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.CURRENT_USER,
+          JSON.stringify(syncResponse.data.user)
+        );
+        console.log(`[API CLIENT] Successfully synced Appwrite session to JWT`);
+        return true;
+      }
+
+      console.log(`[API CLIENT] No valid authentication found`);
+      return false;
+    } catch (error) {
+      console.log(`[API CLIENT] Authentication check failed:`, error);
+      return false;
+    }
+  }
+
+  // Helper method to get current user from storage
+  static async getCurrentUser(): Promise<User | null> {
+    try {
+      const userJson = await AsyncStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+      return userJson ? JSON.parse(userJson) : null;
+    } catch (error) {
+      console.error("Error getting current user:", error);
+      return null;
+    }
   }
 }

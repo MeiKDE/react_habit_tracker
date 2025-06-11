@@ -1,17 +1,11 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { SecureStorage, TokenManager } from "./secure-storage";
-import {
-  ApiClient,
-  SignUpData,
-  SignInData,
-  User as RemoteUser,
-} from "./api-client";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AuthService } from "./auth-appwrite";
+import { User } from "./appwrite";
 
-type User = {
-  id: string;
-  email: string;
-  username: string;
-  name?: string;
+const STORAGE_KEYS = {
+  USER: "@habit_tracker_user",
+  SESSION: "@habit_tracker_session",
 };
 
 type AuthContextType = {
@@ -20,24 +14,16 @@ type AuthContextType = {
   signUp: (
     email: string,
     password: string,
-    username: string
+    username: string,
+    name?: string
   ) => Promise<string | null>;
   signIn: (email: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   refreshAuth: () => Promise<boolean>;
+  clearSessions: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Helper function to convert remote user to local user
-function convertRemoteToLocalUser(remoteUser: RemoteUser): User {
-  return {
-    id: remoteUser.id,
-    email: remoteUser.email,
-    username: remoteUser.username,
-    name: remoteUser.name,
-  };
-}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -49,212 +35,226 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const initializeAuth = async () => {
     try {
-      console.log("[AUTH] Initializing secure authentication");
+      console.log("[AUTH] Initializing Appwrite authentication");
 
-      // Clear legacy AsyncStorage data
-      await SecureStorage.clearUserData();
+      // Try to get current user from Appwrite
+      const currentUser = await AuthService.getCurrentUser();
 
-      // Check for existing secure tokens
-      await getCurrentUser();
-    } catch (error) {
-      console.error("Error initializing auth:", error);
-      await SecureStorage.clearAllData();
+      if (currentUser) {
+        setUser(currentUser);
+        // Store user data locally for offline access
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.USER,
+          JSON.stringify(currentUser)
+        );
+        console.log("[AUTH] User restored from Appwrite session");
+      } else {
+        // Clear any stored user data if no valid session
+        await AsyncStorage.removeItem(STORAGE_KEYS.USER);
+        console.log("[AUTH] No valid Appwrite session found");
+      }
+    } catch (error: any) {
+      // Don't log guest user errors as actual errors - this is expected
+      if (
+        error.message?.includes("missing scope") ||
+        error.message?.includes("guests") ||
+        error.message?.includes("User (role: guests)")
+      ) {
+        console.log("[AUTH] User is not authenticated");
+      } else {
+        console.error("[AUTH] Error initializing auth:", error);
+      }
+
+      // Try to load from local storage as fallback
+      try {
+        const storedUser = await AsyncStorage.getItem(STORAGE_KEYS.USER);
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          // Verify the stored user is still valid by attempting to get current user
+          const validUser = await AuthService.getCurrentUser();
+          if (validUser) {
+            setUser(validUser);
+          } else {
+            await AsyncStorage.removeItem(STORAGE_KEYS.USER);
+          }
+        }
+      } catch (storageError) {
+        console.error("[AUTH] Error loading from storage:", storageError);
+      }
     } finally {
       setIsLoadingUser(false);
     }
   };
 
-  const getCurrentUser = async () => {
+  const signUp = async (
+    email: string,
+    password: string,
+    username: string,
+    name?: string
+  ) => {
     try {
-      // Try to refresh token if needed
-      const isValid = await TokenManager.refreshTokenIfNeeded();
+      console.log("[AUTH] Attempting signup with Appwrite...");
 
-      if (!isValid) {
-        console.log("[AUTH] No valid authentication found");
-        return;
-      }
+      const result = await AuthService.signUp(email, password, username, name);
 
-      // Get user data from storage
-      const currentUser = await SecureStorage.getUserData();
-
-      if (currentUser) {
-        setUser(currentUser);
-        console.log("[AUTH] User restored from secure storage");
-      } else {
-        console.log("[AUTH] No user data found");
-        await SecureStorage.clearAllData();
-      }
-    } catch (error) {
-      console.error("Get user error:", error);
-      await SecureStorage.clearAllData();
-    }
-  };
-
-  const signUp = async (email: string, password: string, username: string) => {
-    try {
-      const signUpData: SignUpData = {
-        email,
-        password,
-        username,
-        name: username,
-      };
-
-      console.log("[AUTH] Attempting secure signup...");
-      const response = await ApiClient.signUp(signUpData);
-
-      if (response.success && response.data) {
-        const localUser = convertRemoteToLocalUser(response.data);
-
-        // Store user data and tokens securely
-        await Promise.all([
-          SecureStorage.storeUserData(localUser),
-          // Note: ApiClient would need to be updated to return token pairs
-          // For now, we'll just store user data
-        ]);
-
-        setUser(localUser);
-        console.log("[AUTH] Secure signup successful");
+      if (result.user) {
+        setUser(result.user);
+        // Store user data locally
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.USER,
+          JSON.stringify(result.user)
+        );
+        console.log("[AUTH] Signup successful");
         return null;
       }
 
-      const error = response.error || "Failed to sign up";
-      console.error("[AUTH] Signup failed:", error);
-      return error;
-    } catch (error) {
+      console.error("[AUTH] Signup failed: No user returned");
+      return "Failed to create account";
+    } catch (error: any) {
       console.error("[AUTH] Signup error:", error);
-      await SecureStorage.clearAllData();
 
       // Provide more specific error messages
-      if (error instanceof Error) {
-        if (error.message.includes("Failed to fetch")) {
-          return "Unable to connect to server. Please check your internet connection and try again.";
-        }
-        return `Signup failed: ${error.message}`;
+      if (error.message.includes("user_already_exists")) {
+        return "An account with this email already exists";
+      } else if (error.message.includes("user_invalid_credentials")) {
+        return "Invalid email or password format";
+      } else if (error.message.includes("password")) {
+        return "Password must be at least 8 characters long";
+      } else if (error.message.includes("email")) {
+        return "Please enter a valid email address";
+      } else if (
+        error.message.includes("Creation of a session is prohibited")
+      ) {
+        // Clear sessions and try again
+        await AuthService.clearAllSessions();
+        return "Session conflict detected. Please try again.";
       }
 
-      return "An error occurred during signup. Please try again.";
+      return (
+        error.message || "An error occurred during signup. Please try again."
+      );
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      const signInData: SignInData = {
-        email,
-        password,
-      };
+      console.log("[AUTH] Attempting signin with Appwrite...");
 
-      console.log("[AUTH] Attempting secure signin...");
-      const response = await ApiClient.signIn(signInData);
+      const result = await AuthService.signIn(email, password);
 
-      if (response.success && response.data) {
-        const localUser = convertRemoteToLocalUser(
-          response.data.user || response.data
+      if (result.user) {
+        setUser(result.user);
+        // Store user data locally
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.USER,
+          JSON.stringify(result.user)
         );
-
-        // Store user data and tokens securely
-        const promises = [SecureStorage.storeUserData(localUser)];
-
-        // Store tokens if available (new token pair format)
-        if (response.data.accessToken && response.data.refreshToken) {
-          promises.push(
-            SecureStorage.storeTokenPair(
-              response.data.accessToken,
-              response.data.refreshToken
-            )
-          );
-          console.log("[AUTH] Stored secure token pair");
-        } else if (response.data.accessToken) {
-          // Legacy single token support
-          promises.push(
-            SecureStorage.storeTokenPair(
-              response.data.accessToken,
-              response.data.accessToken // Use same token for both (legacy)
-            )
-          );
-          console.log("[AUTH] Stored legacy token");
-        }
-
-        await Promise.all(promises);
-        setUser(localUser);
-        console.log("[AUTH] Secure signin successful");
+        console.log("[AUTH] Signin successful");
         return null;
       }
 
-      const error = response.error || "Failed to sign in";
-      console.error("[AUTH] Signin failed:", error);
-      return error;
-    } catch (error) {
+      console.error("[AUTH] Signin failed: No user returned");
+      return "Failed to sign in";
+    } catch (error: any) {
       console.error("[AUTH] Signin error:", error);
-      await SecureStorage.clearAllData();
 
-      // Provide more specific error messages
-      if (error instanceof Error) {
-        if (error.message.includes("Failed to fetch")) {
-          return "Unable to connect to server. Please check your internet connection and try again.";
-        }
-        return `Sign in failed: ${error.message}`;
+      // Handle session conflicts
+      if (error.message.includes("Creation of a session is prohibited")) {
+        // Clear sessions and try again
+        await AuthService.clearAllSessions();
+        return "Session conflict detected. Please try again.";
       }
 
-      return "An error occurred during sign in. Please try again.";
+      // Provide more specific error messages
+      if (error.message.includes("user_invalid_credentials")) {
+        return "Invalid email or password";
+      } else if (error.message.includes("user_not_found")) {
+        return "No account found with this email";
+      } else if (error.message.includes("user_blocked")) {
+        return "Account has been blocked. Please contact support.";
+      } else if (error.message.includes("Failed to fetch")) {
+        return "Unable to connect to server. Please check your internet connection.";
+      }
+
+      return (
+        error.message || "An error occurred during sign in. Please try again."
+      );
     }
   };
 
   const signOut = async () => {
     try {
-      // Attempt to sign out remotely (best effort)
-      try {
-        await ApiClient.signOut();
-      } catch (error) {
-        console.warn("Remote signout failed:", error);
-        // Continue with local cleanup
-      }
+      console.log("[AUTH] Attempting signout with Appwrite...");
 
-      // Clear all local data
-      await SecureStorage.clearAllData();
+      await AuthService.signOut();
       setUser(null);
-      console.log("[AUTH] User signed out successfully (secure)");
+
+      // Clear stored user data
+      await AsyncStorage.multiRemove([STORAGE_KEYS.USER, STORAGE_KEYS.SESSION]);
+
+      console.log("[AUTH] Signout successful");
     } catch (error) {
-      console.error("Sign out error:", error);
-      // Force clear local session even if remote signout fails
-      await SecureStorage.clearAllData();
+      console.error("[AUTH] Signout error:", error);
+      // Even if signout fails on server, clear local data
       setUser(null);
+      await AsyncStorage.multiRemove([STORAGE_KEYS.USER, STORAGE_KEYS.SESSION]);
+    }
+  };
+
+  const clearSessions = async () => {
+    try {
+      console.log("[AUTH] Clearing all sessions...");
+      await AuthService.clearAllSessions();
+      setUser(null);
+      await AsyncStorage.multiRemove([STORAGE_KEYS.USER, STORAGE_KEYS.SESSION]);
+      console.log("[AUTH] All sessions cleared");
+    } catch (error) {
+      console.error("[AUTH] Clear sessions error:", error);
+      // Even if clearing fails on server, clear local data
+      setUser(null);
+      await AsyncStorage.multiRemove([STORAGE_KEYS.USER, STORAGE_KEYS.SESSION]);
     }
   };
 
   const refreshAuth = async (): Promise<boolean> => {
     try {
-      const isValid = await TokenManager.refreshTokenIfNeeded();
+      console.log("[AUTH] Refreshing authentication...");
 
-      if (!isValid) {
-        // Clear user state if tokens are invalid
+      const currentUser = await AuthService.getCurrentUser();
+
+      if (currentUser) {
+        setUser(currentUser);
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.USER,
+          JSON.stringify(currentUser)
+        );
+        console.log("[AUTH] Auth refresh successful");
+        return true;
+      } else {
         setUser(null);
-        await SecureStorage.clearAllData();
+        await AsyncStorage.removeItem(STORAGE_KEYS.USER);
+        console.log("[AUTH] Auth refresh failed - no valid session");
         return false;
       }
-
-      return true;
     } catch (error) {
-      console.error("Auth refresh error:", error);
+      console.error("[AUTH] Auth refresh error:", error);
       setUser(null);
-      await SecureStorage.clearAllData();
+      await AsyncStorage.removeItem(STORAGE_KEYS.USER);
       return false;
     }
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoadingUser,
-        signUp,
-        signIn,
-        signOut,
-        refreshAuth,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const value: AuthContextType = {
+    user,
+    isLoadingUser,
+    signUp,
+    signIn,
+    signOut,
+    refreshAuth,
+    clearSessions,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

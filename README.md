@@ -184,8 +184,8 @@ The app integrates with the following Next.js API endpoints:
    - Verify JWT token storage
 
 2. **User not found after signup**
-   - Check database connection in Next.js app
-   - Verify Prisma migrations are up to date
+   - Check Appwrite connection in Next.js app
+   - Verify Appwrite collections are properly set up
 
 ## Shared Features with Next.js App
 

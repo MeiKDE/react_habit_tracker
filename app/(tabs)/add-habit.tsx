@@ -163,14 +163,14 @@ export default function AddHabitScreen() {
               {loading ? "Creating Habit..." : "Create Habit"}
             </Button>
 
-            {/* Error Message */}
-            {error && (
+            {/* Error Message - Fixed conditional rendering */}
+            {error ? (
               <View className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
                 <Text className="text-red-700 text-center font-medium">
                   {error}
                 </Text>
               </View>
-            )}
+            ) : null}
           </View>
 
           {/* Helper Text */}

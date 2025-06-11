@@ -75,6 +75,19 @@ export default function TabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="appwrite-test"
+        options={{
+          title: "Test",
+          tabBarIcon: ({ color, size, focused }) => (
+            <MaterialCommunityIcons
+              name={focused ? "database-check" : "database-check-outline"}
+              size={focused ? 26 : 24}
+              color={color}
+            />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

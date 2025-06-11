@@ -10,12 +10,12 @@ export default function Index() {
   const { signOut, user } = useAuth();
   const {
     habits,
-    loading,
+    isLoading,
     error,
     deleteHabit,
     completeHabit,
-    getTodayCompletions,
     refreshHabits,
+    getHabitStreak,
   } = useHabits();
 
   const [completedHabits, setCompletedHabits] = useState<string[]>([]);
@@ -37,19 +37,32 @@ export default function Index() {
     }
   };
 
-  const fetchTodayCompletions = useCallback(async () => {
-    if (!user) return;
+  // Helper function to check if habit was completed today
+  const isHabitCompletedToday = (habit: any) => {
+    if (!habit.completions || habit.completions.length === 0) return false;
 
-    try {
-      const completions = await getTodayCompletions();
-      setCompletedHabits(completions.map((c) => c.habitId));
-    } catch (error) {
-      console.error("Error fetching completions:", error);
-    }
-  }, [user, getTodayCompletions]);
+    const today = new Date().toISOString().split("T")[0];
+    return habit.completions.some((completion: any) => {
+      const completionDate = new Date(completion.completedAt)
+        .toISOString()
+        .split("T")[0];
+      return completionDate === today;
+    });
+  };
+
+  const fetchTodayCompletions = useCallback(() => {
+    if (!user || !habits) return;
+
+    // Extract completed habit IDs from today's completions
+    const todayCompletions = habits
+      .filter((habit) => isHabitCompletedToday(habit))
+      .map((habit) => habit.$id);
+
+    setCompletedHabits(todayCompletions);
+  }, [user, habits]);
 
   useEffect(() => {
-    if (user) {
+    if (user && habits) {
       fetchTodayCompletions();
     }
   }, [user, habits, fetchTodayCompletions]);
@@ -67,8 +80,7 @@ export default function Index() {
 
     try {
       await completeHabit(id);
-      // Refresh completions after completing a habit
-      await fetchTodayCompletions();
+      // The habit will be updated in the context automatically
     } catch (error) {
       console.error("Error completing habit:", error);
     }
@@ -169,7 +181,7 @@ export default function Index() {
         className="flex-1 px-6"
         contentContainerStyle={{ paddingTop: 24, paddingBottom: 24 }}
       >
-        {loading ? (
+        {isLoading ? (
           <View className="flex-1 justify-center items-center py-20">
             <View className="items-center">
               <View className="w-12 h-12 bg-indigo-100 rounded-full justify-center items-center mb-4">
@@ -198,93 +210,119 @@ export default function Index() {
                 No habits yet
               </Text>
               <Text className="text-slate-500 text-center px-8">
-                Start building better habits by adding your first one!
+                Create your first habit to start building better routines
               </Text>
             </View>
           </View>
         ) : (
-          <View className="space-y-4">
-            {habits?.map((habit, key) => (
-              <Swipeable
-                ref={(ref) => {
-                  swipeableRefs.current[habit.id] = ref;
-                }}
-                key={key}
-                overshootLeft={false}
-                overshootRight={false}
-                renderLeftActions={renderLeftActions}
-                renderRightActions={() => renderRightActions(habit.id)}
-                onSwipeableOpen={(direction) => {
-                  if (direction === "left") {
-                    handleDeleteHabit(habit.id);
-                  } else if (direction === "right") {
-                    handleCompleteHabit(habit.id);
-                  }
-                  swipeableRefs.current[habit.id]?.close();
-                }}
-              >
-                <Surface
-                  className={`rounded-2xl bg-white border border-gray-100 ${
-                    isHabitCompleted(habit.id) ? "opacity-70" : ""
-                  }`}
-                  elevation={2}
-                  style={{
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.08,
-                    shadowRadius: 8,
+          <View>
+            {/* Habits List */}
+            {habits?.map((habit) => {
+              const streakData = getHabitStreak(habit);
+              const isCompleted = isHabitCompleted(habit.$id);
+
+              return (
+                <Swipeable
+                  key={habit.$id}
+                  ref={(ref) => {
+                    swipeableRefs.current[habit.$id] = ref;
+                  }}
+                  renderRightActions={() => renderRightActions(habit.$id)}
+                  renderLeftActions={renderLeftActions}
+                  onSwipeableOpen={(direction) => {
+                    if (direction === "right") {
+                      handleCompleteHabit(habit.$id);
+                      // Close the swipeable after completing
+                      swipeableRefs.current[habit.$id]?.close();
+                    } else if (direction === "left") {
+                      handleDeleteHabit(habit.$id);
+                    }
                   }}
                 >
-                  <View className="p-6">
-                    {/* Habit Title and Description */}
-                    <View className="mb-4">
-                      <Text className="text-xl font-bold mb-2 text-slate-800 leading-tight">
-                        {habit.title}
-                      </Text>
-                      <Text className="text-base text-slate-600 leading-relaxed">
-                        {habit.description}
-                      </Text>
-                    </View>
-
-                    {/* Stats Row */}
-                    <View className="flex-row justify-between items-center">
-                      {/* Streak Badge */}
-                      <View className="flex-row items-center bg-orange-50 border border-orange-100 rounded-xl px-3 py-2">
-                        <MaterialCommunityIcons
-                          name="fire"
-                          size={16}
-                          color="#ea580c"
-                        />
-                        <Text className="ml-2 text-orange-600 font-semibold text-sm">
-                          {habit.streakCount} day
-                          {habit.streakCount !== 1 ? "s" : ""}
-                        </Text>
-                      </View>
-
-                      {/* Status Badge */}
-                      {isHabitCompleted(habit.id) ? (
-                        <View className="bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2 flex-row items-center">
-                          <MaterialCommunityIcons
-                            name="check-circle"
-                            size={16}
-                            color="#059669"
+                  <Surface
+                    className={`p-5 rounded-2xl mb-3 mt-1 border ${
+                      isCompleted
+                        ? "bg-emerald-50 border-emerald-200"
+                        : "bg-white border-gray-100"
+                    }`}
+                    elevation={isCompleted ? 0 : 1}
+                  >
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-1 mr-4">
+                        <View className="flex-row items-center mb-2">
+                          <View
+                            className="w-4 h-4 rounded-full mr-3"
+                            style={{ backgroundColor: habit.color }}
                           />
-                          <Text className="ml-2 text-emerald-600 font-semibold text-sm">
-                            Completed!
+                          <Text
+                            variant="titleMedium"
+                            className={`font-semibold flex-1 ${
+                              isCompleted
+                                ? "text-emerald-700"
+                                : "text-slate-800"
+                            }`}
+                          >
+                            {habit.title}
+                          </Text>
+                          {isCompleted && (
+                            <MaterialCommunityIcons
+                              name="check-circle"
+                              size={20}
+                              color="#059669"
+                            />
+                          )}
+                        </View>
+
+                        <View className="flex-row items-center justify-between">
+                          <Text
+                            className={`text-sm ${
+                              isCompleted
+                                ? "text-emerald-600"
+                                : "text-slate-500"
+                            }`}
+                          >
+                            {getFrequencyLabel(habit.frequency)} •{" "}
+                            {streakData.streak} day streak
+                          </Text>
+                          <Text
+                            className={`text-xs font-medium px-2 py-1 rounded-full ${
+                              isCompleted
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            {streakData.total} total
                           </Text>
                         </View>
-                      ) : (
-                        <View className="bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2">
-                          <Text className="text-indigo-600 font-semibold text-sm">
-                            {getFrequencyLabel(habit.frequency)}
+
+                        {habit.description && (
+                          <Text
+                            className={`text-sm mt-2 ${
+                              isCompleted
+                                ? "text-emerald-600"
+                                : "text-slate-500"
+                            }`}
+                          >
+                            {habit.description}
                           </Text>
-                        </View>
-                      )}
+                        )}
+                      </View>
                     </View>
-                  </View>
-                </Surface>
-              </Swipeable>
-            ))}
+                  </Surface>
+                </Swipeable>
+              );
+            })}
+
+            {/* Usage Instructions */}
+            <View className="mt-8 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
+              <Text className="text-indigo-700 font-medium mb-2">
+                Quick Actions
+              </Text>
+              <Text className="text-indigo-600 text-sm leading-relaxed">
+                Swipe right on a habit to mark it as complete, or swipe left to
+                delete it.
+              </Text>
+            </View>
           </View>
         )}
       </ScrollView>

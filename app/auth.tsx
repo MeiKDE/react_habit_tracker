@@ -11,13 +11,13 @@ export default function AuthScreen() {
   const [email, setEmail] = useState<string>("");
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
-  const [error, setError] = useState<string | null>("");
+  const [error, setError] = useState<string>("");
   const [showConnectionTest, setShowConnectionTest] = useState<boolean>(false);
 
   const theme = useTheme();
   const router = useRouter();
 
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, clearSessions } = useAuth();
 
   const handleAuth = async () => {
     if (!email || !password) {
@@ -35,7 +35,7 @@ export default function AuthScreen() {
       return;
     }
 
-    setError(null);
+    setError("");
 
     if (isSignUp) {
       const error = await signUp(email, password, username);
@@ -54,9 +54,19 @@ export default function AuthScreen() {
     }
   };
 
+  const handleClearSessions = async () => {
+    try {
+      await clearSessions();
+      setError("");
+      alert("All sessions cleared successfully");
+    } catch (error) {
+      setError("Failed to clear sessions");
+    }
+  };
+
   const handleSwitchMode = () => {
     setIsSignUp((prev) => !prev);
-    setError(null);
+    setError("");
     setEmail("");
     setUsername("");
     setPassword("");
@@ -114,11 +124,11 @@ export default function AuthScreen() {
             </View>
 
             {/* Connection Test Component */}
-            {showConnectionTest && (
+            {showConnectionTest ? (
               <View className="mb-6">
                 <ConnectionTest />
               </View>
-            )}
+            ) : null}
 
             {/* Form Fields */}
             <View className="space-y-4">
@@ -143,7 +153,7 @@ export default function AuthScreen() {
               </View>
 
               {/* Username Input (only for signup) */}
-              {isSignUp && (
+              {isSignUp ? (
                 <View>
                   <Text className="text-sm font-semibold text-slate-700 mb-2">
                     Username
@@ -161,7 +171,7 @@ export default function AuthScreen() {
                     left={<TextInput.Icon icon="account" />}
                   />
                 </View>
-              )}
+              ) : null}
 
               {/* Password Input */}
               <View>
@@ -185,13 +195,13 @@ export default function AuthScreen() {
             </View>
 
             {/* Error Message */}
-            {error && (
+            {error ? (
               <View className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
                 <Text className="text-red-700 text-center font-medium">
                   {error}
                 </Text>
               </View>
-            )}
+            ) : null}
 
             {/* Submit Button */}
             <Button
@@ -218,6 +228,17 @@ export default function AuthScreen() {
               {isSignUp
                 ? "Already have an account? Sign In"
                 : "Don't have an account? Sign Up"}
+            </Button>
+
+            {/* Debug: Clear Sessions Button */}
+            <Button
+              mode="outlined"
+              onPress={handleClearSessions}
+              className="mt-4 border-amber-500"
+              textColor="#f59e0b"
+              icon="debug-step-over"
+            >
+              Clear All Sessions (Debug)
             </Button>
           </View>
 

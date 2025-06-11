@@ -1,114 +1,30 @@
-import { HabitsAPI } from "@/lib/habits-api";
 import { useAuth } from "@/lib/auth-context";
-import { Habit, HabitCompletion } from "@/types/database.type";
+import { useHabits } from "@/lib/habits-context";
+import { Habit, StreakData } from "@/lib/appwrite";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 import { Card, Text } from "react-native-paper";
 
 export default function StreaksScreen() {
-  const [habits, setHabits] = useState<Habit[]>([]);
-  const [completedHabits, setCompletedHabits] = useState<HabitCompletion[]>([]);
-  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const { habits, isLoading, getHabitStreak } = useHabits();
 
-  const fetchHabits = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      const response = await HabitsAPI.getUserHabits();
-      setHabits(response);
-    } catch (error) {
-      console.error("Error fetching habits:", error);
-    }
-  }, [user]);
-
-  const fetchCompletions = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      const response = await HabitsAPI.getAllCompletions();
-      setCompletedHabits(response);
-    } catch (error) {
-      console.error("Error fetching completions:", error);
-    }
-  }, [user]);
-
-  const fetchData = useCallback(async () => {
-    if (!user) return;
-
-    setLoading(true);
-    try {
-      await Promise.all([fetchHabits(), fetchCompletions()]);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchHabits, fetchCompletions, user]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  interface StreakData {
-    streak: number;
-    bestStreak: number;
-    total: number;
+  interface HabitWithStreakData extends Habit {
+    streakData: StreakData;
   }
 
-  const getStreakData = (habitId: string): StreakData => {
-    const habitCompletions = completedHabits
-      ?.filter((c) => c.habitId === habitId)
-      .sort(
-        (a, b) =>
-          new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime()
-      );
+  const habitStreaks: HabitWithStreakData[] = habits.map((habit) => ({
+    ...habit,
+    streakData: getHabitStreak(habit),
+  }));
 
-    if (habitCompletions?.length === 0) {
-      return { streak: 0, bestStreak: 0, total: 0 };
-    }
+  const rankedHabits = habitStreaks.sort(
+    (a, b) => b.streakData.bestStreak - a.streakData.bestStreak
+  );
 
-    // build streak data
-    let streak = 0;
-    let bestStreak = 0;
-    let total = habitCompletions.length;
-
-    let lastDate: Date | null = null;
-    let currentStreak = 0;
-
-    habitCompletions?.forEach((c) => {
-      const date = new Date(c.completedAt);
-      if (lastDate) {
-        const diff =
-          (date.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
-
-        if (diff <= 1.5) {
-          currentStreak += 1;
-        } else {
-          currentStreak = 1;
-        }
-      } else {
-        currentStreak = 1;
-      }
-
-      if (currentStreak > bestStreak) bestStreak = currentStreak;
-      streak = currentStreak;
-      lastDate = date;
-    });
-
-    return { streak, bestStreak, total };
-  };
-
-  const habitStreaks = habits.map((habit) => {
-    const { streak, bestStreak, total } = getStreakData(habit.id);
-    return { habit, bestStreak, streak, total };
-  });
-
-  const rankedHabits = habitStreaks.sort((a, b) => b.bestStreak - a.bestStreak);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <View className="flex-1 bg-gradient-to-br from-slate-50 to-gray-100 justify-center items-center">
         <View className="items-center">
@@ -164,10 +80,10 @@ export default function StreaksScreen() {
             </View>
           </View>
         ) : (
-          <View className="space-y-6">
+          <View>
             {/* Top Performers Section */}
             {rankedHabits.length > 0 && (
-              <View className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <View className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
                 <View className="flex-row items-center mb-4">
                   <MaterialCommunityIcons
                     name="trophy"
@@ -179,11 +95,11 @@ export default function StreaksScreen() {
                   </Text>
                 </View>
 
-                <View className="space-y-3">
+                <View>
                   {rankedHabits.slice(0, 3).map((item, index) => (
                     <View
-                      key={index}
-                      className="flex-row items-center p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-100"
+                      key={item.$id}
+                      className="flex-row items-center p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-100 mb-3"
                     >
                       {/* Medal */}
                       <View
@@ -202,18 +118,23 @@ export default function StreaksScreen() {
 
                       {/* Habit Info */}
                       <View className="flex-1">
-                        <Text className="font-semibold text-slate-800 mb-1">
-                          {item.habit.title}
+                        <Text className="text-slate-800 font-semibold text-base">
+                          {item.title}
                         </Text>
-                        <Text className="text-xs text-slate-600">
-                          Best streak: {item.bestStreak} days
+                        <Text className="text-slate-500 text-sm">
+                          Best streak: {item.streakData.bestStreak} days
                         </Text>
                       </View>
 
-                      {/* Streak Badge */}
-                      <View className="bg-white rounded-lg px-3 py-1 border border-amber-200">
-                        <Text className="font-bold text-amber-600">
-                          🔥 {item.bestStreak}
+                      {/* Current Streak */}
+                      <View className="items-center">
+                        <MaterialCommunityIcons
+                          name="fire"
+                          size={20}
+                          color="#f59e0b"
+                        />
+                        <Text className="text-amber-600 font-bold text-sm">
+                          {item.streakData.streak}
                         </Text>
                       </View>
                     </View>
@@ -223,101 +144,127 @@ export default function StreaksScreen() {
             )}
 
             {/* All Habits Section */}
-            <View className="space-y-4">
-              <Text className="text-lg font-bold text-slate-800 px-2">
-                All Your Habits
-              </Text>
+            <View className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <View className="flex-row items-center mb-4">
+                <MaterialCommunityIcons
+                  name="chart-timeline-variant"
+                  size={20}
+                  color="#6366f1"
+                />
+                <Text className="ml-2 text-lg font-bold text-slate-800">
+                  All Habits
+                </Text>
+              </View>
 
-              {rankedHabits.map(
-                ({ habit, streak, bestStreak, total }, index) => (
+              <View>
+                {habitStreaks.map((item) => (
                   <Card
-                    key={index}
-                    className="rounded-2xl bg-white border border-gray-100"
-                    style={{
-                      shadowColor: "#000",
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.08,
-                      shadowRadius: 8,
-                      elevation: 2,
-                    }}
+                    key={item.$id}
+                    className="bg-slate-50 border border-slate-200 mb-4"
+                    elevation={0}
                   >
-                    <Card.Content className="p-6">
+                    <View className="p-4">
                       {/* Habit Header */}
-                      <View className="mb-4">
-                        <Text className="text-lg font-bold text-slate-800 mb-1">
-                          {habit.title}
-                        </Text>
-                        <Text className="text-slate-600 leading-relaxed">
-                          {habit.description}
-                        </Text>
+                      <View className="flex-row items-center justify-between mb-3">
+                        <View className="flex-row items-center flex-1">
+                          <View
+                            className="w-4 h-4 rounded-full mr-3"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <View className="flex-1">
+                            <Text className="text-slate-800 font-semibold text-base">
+                              {item.title}
+                            </Text>
+                            <Text className="text-slate-500 text-sm">
+                              {item.frequency.charAt(0) +
+                                item.frequency.slice(1).toLowerCase()}
+                            </Text>
+                          </View>
+                        </View>
                       </View>
 
                       {/* Stats Grid */}
-                      <View className="flex-row justify-between space-x-3">
+                      <View className="flex-row justify-between">
                         {/* Current Streak */}
-                        <View className="flex-1 bg-orange-50 border border-orange-100 rounded-xl p-4 items-center">
-                          <View className="flex-row items-center mb-2">
-                            <MaterialCommunityIcons
-                              name="fire"
-                              size={16}
-                              color="#ea580c"
-                            />
-                            <Text className="ml-1 text-xs font-medium text-orange-600 uppercase tracking-wide">
-                              Current
-                            </Text>
-                          </View>
-                          <Text className="text-2xl font-bold text-slate-800">
-                            {streak}
+                        <View className="items-center bg-white rounded-xl p-3 flex-1 mr-2">
+                          <MaterialCommunityIcons
+                            name="fire"
+                            size={20}
+                            color="#f59e0b"
+                          />
+                          <Text className="text-amber-600 font-bold text-lg mt-1">
+                            {item.streakData.streak}
                           </Text>
-                          <Text className="text-xs text-slate-500 mt-1">
-                            day{streak !== 1 ? "s" : ""}
+                          <Text className="text-slate-500 text-xs">
+                            Current
                           </Text>
                         </View>
 
                         {/* Best Streak */}
-                        <View className="flex-1 bg-amber-50 border border-amber-100 rounded-xl p-4 items-center">
-                          <View className="flex-row items-center mb-2">
-                            <MaterialCommunityIcons
-                              name="trophy"
-                              size={16}
-                              color="#f59e0b"
-                            />
-                            <Text className="ml-1 text-xs font-medium text-amber-600 uppercase tracking-wide">
-                              Best
-                            </Text>
-                          </View>
-                          <Text className="text-2xl font-bold text-slate-800">
-                            {bestStreak}
+                        <View className="items-center bg-white rounded-xl p-3 flex-1 mx-1">
+                          <MaterialCommunityIcons
+                            name="trophy"
+                            size={20}
+                            color="#10b981"
+                          />
+                          <Text className="text-emerald-600 font-bold text-lg mt-1">
+                            {item.streakData.bestStreak}
                           </Text>
-                          <Text className="text-xs text-slate-500 mt-1">
-                            day{bestStreak !== 1 ? "s" : ""}
-                          </Text>
+                          <Text className="text-slate-500 text-xs">Best</Text>
                         </View>
 
                         {/* Total Completions */}
-                        <View className="flex-1 bg-emerald-50 border border-emerald-100 rounded-xl p-4 items-center">
-                          <View className="flex-row items-center mb-2">
-                            <MaterialCommunityIcons
-                              name="check-circle"
-                              size={16}
-                              color="#059669"
-                            />
-                            <Text className="ml-1 text-xs font-medium text-emerald-600 uppercase tracking-wide">
-                              Total
-                            </Text>
-                          </View>
-                          <Text className="text-2xl font-bold text-slate-800">
-                            {total}
+                        <View className="items-center bg-white rounded-xl p-3 flex-1 ml-2">
+                          <MaterialCommunityIcons
+                            name="check-all"
+                            size={20}
+                            color="#6366f1"
+                          />
+                          <Text className="text-indigo-600 font-bold text-lg mt-1">
+                            {item.streakData.total}
                           </Text>
-                          <Text className="text-xs text-slate-500 mt-1">
-                            time{total !== 1 ? "s" : ""}
-                          </Text>
+                          <Text className="text-slate-500 text-xs">Total</Text>
                         </View>
                       </View>
-                    </Card.Content>
+
+                      {/* Progress Description */}
+                      <View className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                        <Text className="text-slate-600 text-sm text-center">
+                          {item.streakData.streak === 0
+                            ? "Start your streak today!"
+                            : item.streakData.streak === 1
+                            ? "Great start! Keep going!"
+                            : item.streakData.streak < 7
+                            ? "Building momentum! 🚀"
+                            : item.streakData.streak < 21
+                            ? "You're on fire! 🔥"
+                            : "Habit master! 🏆"}
+                        </Text>
+                      </View>
+                    </View>
                   </Card>
-                )
-              )}
+                ))}
+              </View>
+            </View>
+
+            {/* Motivation Section */}
+            <View className="mt-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200">
+              <View className="flex-row items-center mb-2">
+                <MaterialCommunityIcons
+                  name="lightbulb-on"
+                  size={20}
+                  color="#6366f1"
+                />
+                <Text className="ml-2 text-indigo-700 font-semibold">
+                  Streak Tips
+                </Text>
+              </View>
+              <Text className="text-indigo-600 text-sm leading-relaxed">
+                • Consistency beats perfection - focus on showing up daily
+                {"\n"}• Track your progress to stay motivated
+                {"\n"}• Celebrate small wins along the way
+                {"\n"}• Don&apos;t break the chain!
+              </Text>
             </View>
           </View>
         )}

@@ -16,7 +16,7 @@ export const getApiUrl = (): string => {
     // return "http://10.0.2.2:3000/api";
 
     // Option 3: Physical Device or Expo Go (currently active)
-    return "http://192.168.1.106:3000/api";
+    return "http://192.168.1.106:3002/api";
 
     // Option 4: Expo Tunnel (uncomment if using expo start --tunnel)
     // return "http://192.168.1.106:3000/api";
