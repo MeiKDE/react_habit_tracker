@@ -2,14 +2,25 @@ import { useAuth } from "@/lib/auth-context";
 import { useHabits } from "@/lib/habits-context";
 import { Habit, StreakData } from "@/lib/appwrite";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
-import { Card, Text } from "react-native-paper";
+import { Card, Text, IconButton } from "react-native-paper";
 
 export default function StreaksScreen() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { habits, isLoading, getHabitStreak } = useHabits();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      router.replace("/auth");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
 
   interface HabitWithStreakData extends Habit {
     streakData: StreakData;
@@ -41,18 +52,32 @@ export default function StreaksScreen() {
     <View className="flex-1 bg-gradient-to-br from-slate-50 to-gray-100">
       {/* Header */}
       <View className="px-6 pt-4 pb-6 bg-white shadow-sm border-b border-gray-100">
-        <View className="flex-row items-center">
-          <View className="w-10 h-10 bg-amber-100 rounded-full justify-center items-center mr-4">
-            <MaterialCommunityIcons name="fire" size={20} color="#f59e0b" />
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center flex-1">
+            <View className="w-10 h-10 bg-amber-100 rounded-full justify-center items-center mr-4">
+              <MaterialCommunityIcons name="fire" size={20} color="#f59e0b" />
+            </View>
+            <View>
+              <Text
+                variant="headlineMedium"
+                className="font-bold text-slate-800"
+              >
+                Habit Streaks
+              </Text>
+              <Text className="text-slate-500 text-sm">
+                Track your consistency and progress
+              </Text>
+            </View>
           </View>
-          <View>
-            <Text variant="headlineMedium" className="font-bold text-slate-800">
-              Habit Streaks
-            </Text>
-            <Text className="text-slate-500 text-sm">
-              Track your consistency and progress
-            </Text>
-          </View>
+
+          {/* Sign Out Button */}
+          <IconButton
+            icon="logout"
+            size={24}
+            iconColor="rgb(100, 116, 139)"
+            onPress={handleSignOut}
+            style={{ marginRight: -8 }}
+          />
         </View>
       </View>
 

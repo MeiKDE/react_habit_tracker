@@ -39,6 +39,13 @@ export default function RootLayout() {
               <RouteGuard>
                 <Stack>
                   <Stack.Screen
+                    name="auth"
+                    options={{
+                      title: "NextStartAI",
+                      headerShown: true,
+                    }}
+                  />
+                  <Stack.Screen
                     name="(tabs)"
                     options={{ headerShown: false }}
                   />

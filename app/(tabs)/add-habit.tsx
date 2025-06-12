@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   useTheme,
+  IconButton,
 } from "react-native-paper";
 
 const FREQUENCIES = ["daily", "weekly", "monthly"];
@@ -21,10 +22,19 @@ export default function AddHabitScreen() {
   const [frequency, setFrequency] = useState<Frequency>("daily");
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { createHabit } = useHabits();
   const router = useRouter();
   const theme = useTheme();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      router.replace("/auth");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!user) {
@@ -60,18 +70,32 @@ export default function AddHabitScreen() {
     >
       {/* Header */}
       <View className="px-6 pt-4 pb-6 bg-white shadow-sm border-b border-gray-100">
-        <View className="flex-row items-center">
-          <View className="w-10 h-10 bg-indigo-100 rounded-full justify-center items-center mr-4">
-            <MaterialCommunityIcons name="plus" size={20} color="#6366f1" />
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center flex-1">
+            <View className="w-10 h-10 bg-indigo-100 rounded-full justify-center items-center mr-4">
+              <MaterialCommunityIcons name="plus" size={20} color="#6366f1" />
+            </View>
+            <View>
+              <Text
+                variant="headlineMedium"
+                className="font-bold text-slate-800"
+              >
+                Create New Habit
+              </Text>
+              <Text className="text-slate-500 text-sm">
+                Build a better version of yourself
+              </Text>
+            </View>
           </View>
-          <View>
-            <Text variant="headlineMedium" className="font-bold text-slate-800">
-              Create New Habit
-            </Text>
-            <Text className="text-slate-500 text-sm">
-              Build a better version of yourself
-            </Text>
-          </View>
+
+          {/* Sign Out Button */}
+          <IconButton
+            icon="logout"
+            size={24}
+            iconColor="rgb(100, 116, 139)"
+            onPress={handleSignOut}
+            style={{ marginRight: -8 }}
+          />
         </View>
       </View>
 
