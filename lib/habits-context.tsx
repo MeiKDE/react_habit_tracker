@@ -26,7 +26,7 @@ const HabitsContext = createContext<HabitsContextType | undefined>(undefined);
 export function HabitsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [habits, setHabits] = useState<Habit[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -41,146 +41,142 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
 
     try {
-      setIsLoading(true);
-      setError(null);
-
-      console.log("[HABITS] Loading habits for user:", user.$id);
+      setLoading(true);
       const userHabits = await HabitsService.getUserHabits(user.$id);
-
       setHabits(userHabits);
-      console.log("[HABITS] Loaded", userHabits.length, "habits");
-    } catch (error: any) {
-      console.error("[HABITS] Error loading habits:", error);
-      setError(error.message || "Failed to load habits");
+    } catch (error) {
+      // Silent fail - error handling can be added here if needed
+      setError("Failed to load habits");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const createHabit = async (data: CreateHabitData) => {
-    if (!user) throw new Error("User not authenticated");
+    if (!user) return;
 
     try {
-      setError(null);
-      console.log("[HABITS] Creating habit:", data.title);
-
+      setLoading(true);
       const newHabit = await HabitsService.createHabit(user.$id, data);
-
-      // Add the new habit to the local state
-      setHabits((prev) => [newHabit, ...prev]);
-      console.log("[HABITS] Habit created successfully");
-    } catch (error: any) {
-      console.error("[HABITS] Error creating habit:", error);
-      setError(error.message || "Failed to create habit");
+      setHabits((prev) => [...prev, newHabit]);
+    } catch (error) {
+      setError("Failed to create habit");
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const updateHabit = async (habitId: string, updates: Partial<Habit>) => {
-    if (!user) throw new Error("User not authenticated");
+    if (!user) return;
 
     try {
-      setError(null);
-      console.log("[HABITS] Updating habit:", habitId);
-
+      setLoading(true);
       const updatedHabit = await HabitsService.updateHabit(
         habitId,
         user.$id,
         updates
       );
-
-      // Update the habit in local state
       setHabits((prev) =>
         prev.map((habit) =>
-          habit.$id === habitId ? { ...habit, ...updatedHabit } : habit
+          habit.$id === habitId
+            ? {
+                ...habit,
+                ...updatedHabit,
+                completions: habit.completions,
+              }
+            : habit
         )
       );
-      console.log("[HABITS] Habit updated successfully");
-    } catch (error: any) {
-      console.error("[HABITS] Error updating habit:", error);
-      setError(error.message || "Failed to update habit");
+    } catch (error) {
+      setError("Failed to update habit");
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const deleteHabit = async (habitId: string) => {
-    if (!user) throw new Error("User not authenticated");
+    if (!user) return;
 
     try {
-      setError(null);
-      console.log("[HABITS] Deleting habit:", habitId);
-
+      setLoading(true);
       await HabitsService.deleteHabit(habitId, user.$id);
-
-      // Remove the habit from local state
       setHabits((prev) => prev.filter((habit) => habit.$id !== habitId));
-      console.log("[HABITS] Habit deleted successfully");
-    } catch (error: any) {
-      console.error("[HABITS] Error deleting habit:", error);
-      setError(error.message || "Failed to delete habit");
+    } catch (error) {
+      setError("Failed to delete habit");
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
-  const completeHabit = async (habitId: string, notes?: string) => {
-    if (!user) throw new Error("User not authenticated");
+  const completeHabit = async (habitId: string) => {
+    if (!user) return;
 
     try {
-      setError(null);
-      console.log("[HABITS] Completing habit:", habitId);
+      setLoading(true);
+      const habit = habits.find((h) => h.$id === habitId);
+      if (!habit) {
+        throw new Error("Habit not found");
+      }
 
-      const completion = await HabitsService.completeHabit(habitId, user.$id, {
-        habitId,
-        notes,
-        completedAt: new Date().toISOString(),
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const existingCompletion = habit.completions?.find((completion) => {
+        const completionDate = new Date(completion.completedAt);
+        completionDate.setHours(0, 0, 0, 0);
+        return completionDate.getTime() === today.getTime();
       });
 
-      // Update the habit in local state with the new completion
-      setHabits((prev) =>
-        prev.map((habit) => {
-          if (habit.$id === habitId) {
-            const updatedCompletions = habit.completions
-              ? [completion, ...habit.completions]
-              : [completion];
-            return {
-              ...habit,
-              completions: updatedCompletions,
-              lastCompleted: completion.completedAt,
-            };
-          }
-          return habit;
-        })
+      if (existingCompletion) {
+        throw new Error("Habit already completed today");
+      }
+
+      const newCompletion = await HabitsService.completeHabit(
+        habitId,
+        user.$id
       );
-      console.log("[HABITS] Habit completed successfully");
-    } catch (error: any) {
-      console.error("[HABITS] Error completing habit:", error);
-      setError(error.message || "Failed to complete habit");
+
+      setHabits((prev) =>
+        prev.map((h) =>
+          h.$id === habitId
+            ? {
+                ...h,
+                completions: [...(h.completions || []), newCompletion],
+              }
+            : h
+        )
+      );
+    } catch (error) {
+      setError("Failed to complete habit");
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const deleteCompletion = async (completionId: string) => {
-    if (!user) throw new Error("User not authenticated");
+    if (!user) return;
 
     try {
-      setError(null);
-      console.log("[HABITS] Deleting completion:", completionId);
-
+      setLoading(true);
       await HabitsService.deleteCompletion(completionId, user.$id);
 
-      // Remove the completion from local state
       setHabits((prev) =>
         prev.map((habit) => ({
           ...habit,
-          completions:
-            habit.completions?.filter((c) => c.$id !== completionId) || [],
+          completions: habit.completions?.filter(
+            (completion) => completion.$id !== completionId
+          ),
         }))
       );
-      console.log("[HABITS] Completion deleted successfully");
-    } catch (error: any) {
-      console.error("[HABITS] Error deleting completion:", error);
-      setError(error.message || "Failed to delete completion");
+    } catch (error) {
+      setError("Failed to delete completion");
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -192,7 +188,6 @@ export function HabitsProvider({ children }: { children: React.ReactNode }) {
     if (!habit.completions) {
       return { streak: 0, bestStreak: 0, total: 0 };
     }
-
     return HabitsService.calculateStreak(habit.completions, habit.frequency);
   };
 

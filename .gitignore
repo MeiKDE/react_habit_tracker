@@ -72,3 +72,45 @@ web-build/
 .DS_Store
 *.tmp
 
+# Production-specific ignores
+# App Store and Google Play files
+android/app/release/
+ios/build/
+*.ipa
+*.apk
+*.aab
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Debug and development files
+debug/
+*-debug.js
+*-test.js
+test-*.js
+
+# Certificates and keys (already included above but emphasized)
+*.keystore
+*.jks
+*.p12
+*.p8
+*.mobileprovision
+*.key
+*.pem
+*.cer
+*.csr
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Local config files
+local.properties
+
+# React Native
+*.hprof
+

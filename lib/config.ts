@@ -1,11 +1,12 @@
+import { Platform } from "react-native";
+import { Client } from "appwrite";
+
 // Configuration for the Habit Tracker app
 export const CONFIG = {
   // API Configuration
   API: {
     // Base URL for the Next.js backend
-    BASE_URL: __DEV__
-      ? "http://192.168.1.106:3000/api" // Updated with correct IP address
-      : "https://your-production-url.com/api", // Production URL - replace with your actual domain
+    BASE_URL: process.env.EXPO_PUBLIC_API_URL || "http://192.168.1.7:3000",
 
     // Timeout for API requests (in milliseconds)
     TIMEOUT: 10000,
@@ -30,12 +31,36 @@ export const CONFIG = {
   APP: {
     NAME: "Habit Tracker",
     VERSION: "1.0.0",
+    PLATFORM: Platform.OS,
   },
 
   // Development flags
   DEBUG: {
     ENABLE_LOGGING: __DEV__,
     SHOW_API_ERRORS: __DEV__,
+  },
+
+  APPWRITE: {
+    ENDPOINT:
+      process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT ||
+      "https://cloud.appwrite.io/v1",
+    PROJECT_ID: process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID || "",
+    DATABASE_ID: process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID || "",
+    USERS_COLLECTION_ID:
+      process.env.EXPO_PUBLIC_APPWRITE_USERS_COLLECTION_ID || "users",
+    HABITS_COLLECTION_ID:
+      process.env.EXPO_PUBLIC_APPWRITE_HABITS_COLLECTION_ID || "habits",
+    HABIT_COMPLETIONS_COLLECTION_ID:
+      process.env.EXPO_PUBLIC_APPWRITE_HABIT_COMPLETIONS_COLLECTION_ID ||
+      "habit_completions",
+  },
+
+  STORAGE: {
+    SECURE_KEYS: {
+      USER_TOKEN: "user_token",
+      USER_DATA: "user_data",
+      AUTH_SESSION: "auth_session",
+    },
   },
 };
 
@@ -66,13 +91,14 @@ export const logError = (message: string, error: any): void => {
 // Helper function to test API connection
 export const testApiConnection = async (): Promise<boolean> => {
   try {
-    console.log(`[CONFIG] Testing API connection to: ${CONFIG.API.BASE_URL}`);
+    if (__DEV__) {
+      console.log(`[CONFIG] Testing API connection to: ${CONFIG.API.BASE_URL}`);
+    }
 
-    // Create timeout signal
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), CONFIG.API.TIMEOUT);
 
-    const response = await fetch(`${CONFIG.API.BASE_URL}/habits`, {
+    const response = await fetch(`${CONFIG.API.BASE_URL}/api/health`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -81,14 +107,30 @@ export const testApiConnection = async (): Promise<boolean> => {
     });
 
     clearTimeout(timeoutId);
-    console.log(
-      `[CONFIG] API connection test response status: ${response.status}`
-    );
 
-    // Even if we get 401 (unauthorized), it means the server is reachable
-    return response.status === 401 || response.status === 200;
+    if (__DEV__) {
+      console.log(
+        `[CONFIG] API connection test response status: ${response.status}`
+      );
+    }
+
+    return response.ok;
   } catch (error) {
-    console.error(`[CONFIG] API connection test failed:`, error);
+    if (__DEV__) {
+      console.error(`[CONFIG] API connection test failed:`, error);
+    }
     return false;
   }
 };
+
+// Validation functions
+export const validateConfig = (): boolean => {
+  const requiredFields = [
+    CONFIG.APPWRITE.PROJECT_ID,
+    CONFIG.APPWRITE.DATABASE_ID,
+  ];
+
+  return requiredFields.every((field) => field && field.trim() !== "");
+};
+
+export default CONFIG;
