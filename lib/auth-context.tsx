@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const initializeAuth = async () => {
     try {
-      console.log("[AUTH] Initializing Appwrite authentication");
+      // console.log("[AUTH] Initializing Appwrite authentication");
 
       // Check if there's a valid session first to avoid 401 guest errors
       const hasSession = await AuthService.hasValidSession();
@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           STORAGE_KEYS.USER,
           JSON.stringify(currentUser)
         );
-        console.log("[AUTH] User restored from Appwrite session");
+        // console.log("[AUTH] User restored from Appwrite session");
       } else {
         // Clear any stored user data if no valid session
         await AsyncStorage.removeItem(STORAGE_KEYS.USER);

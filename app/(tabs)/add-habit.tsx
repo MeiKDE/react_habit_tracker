@@ -1,17 +1,20 @@
 import { useAuth } from "@/lib/auth-context";
 import { useHabits } from "@/lib/habits-context";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import {
-  Button,
-  SegmentedButtons,
+  View,
   Text,
   TextInput,
-  useTheme,
-  IconButton,
-} from "react-native-paper";
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  Platform,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Plus, LogOut } from "lucide-react-native";
 
 const FREQUENCIES = ["daily", "weekly", "monthly"];
 type Frequency = (typeof FREQUENCIES)[number];
@@ -25,7 +28,6 @@ export default function AddHabitScreen() {
   const { user, signOut } = useAuth();
   const { createHabit } = useHabits();
   const router = useRouter();
-  const theme = useTheme();
 
   const handleSignOut = async () => {
     try {
@@ -41,6 +43,15 @@ export default function AddHabitScreen() {
       return;
     }
 
+    if (!title.trim()) {
+      Alert.alert("Error", "Please enter a habit title");
+      return;
+    }
+    if (!description.trim()) {
+      Alert.alert("Error", "Please enter a description");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -51,7 +62,14 @@ export default function AddHabitScreen() {
         frequency: frequency.toUpperCase() as "DAILY" | "WEEKLY" | "MONTHLY",
       });
 
-      router.back();
+      // Clear form inputs
+      setTitle("");
+      setDescription("");
+      setFrequency("daily");
+
+      Alert.alert("Success", "Habit created successfully!", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
     } catch (error) {
       if (error instanceof Error) {
         setError(error.message);
@@ -63,150 +81,197 @@ export default function AddHabitScreen() {
     }
   };
 
+  const frequencyOptions: { value: Frequency; label: string }[] =
+    FREQUENCIES.map((freq) => ({
+      value: freq,
+      label: freq.charAt(0).toUpperCase() + freq.slice(1),
+    }));
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1 bg-gradient-to-br from-slate-50 to-gray-100"
-    >
-      {/* Header */}
-      <View className="px-6 pt-4 pb-6 bg-white shadow-sm border-b border-gray-100">
-        <View className="flex-row items-center justify-between">
-          <View className="flex-row items-center flex-1">
-            <View className="w-10 h-10 bg-indigo-100 rounded-full justify-center items-center mr-4">
-              <MaterialCommunityIcons name="plus" size={20} color="#6366f1" />
-            </View>
-            <View>
-              <Text
-                variant="headlineMedium"
-                className="font-bold text-slate-800"
-              >
-                Create New Habit
-              </Text>
-              <Text className="text-slate-500 text-sm">
-                Build a better version of yourself
-              </Text>
-            </View>
-          </View>
-
-          {/* Sign Out Button */}
-          <IconButton
-            icon="logout"
-            size={24}
-            iconColor="rgb(100, 116, 139)"
-            onPress={handleSignOut}
-            style={{ marginRight: -8 }}
-          />
-        </View>
-      </View>
-
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ flexGrow: 1 }}
-        showsVerticalScrollIndicator={false}
-      >
-        <View className="flex-1 px-6 py-8 justify-center">
-          {/* Form Card */}
-          <View className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            {/* Title Input */}
-            <View className="mb-6">
-              <Text className="text-sm font-semibold text-slate-700 mb-3">
-                Habit Title *
-              </Text>
-              <TextInput
-                placeholder="e.g., Drink 8 glasses of water"
-                mode="outlined"
-                value={title}
-                onChangeText={setTitle}
-                disabled={loading}
-                outlineColor="#e2e8f0"
-                activeOutlineColor="#6366f1"
-                className="bg-slate-50"
-                contentStyle={{ color: "#1e293b" }}
-              />
-            </View>
-
-            {/* Description Input */}
-            <View className="mb-6">
-              <Text className="text-sm font-semibold text-slate-700 mb-3">
-                Description *
-              </Text>
-              <TextInput
-                placeholder="Describe your habit and why it's important to you"
-                mode="outlined"
-                value={description}
-                onChangeText={setDescription}
-                disabled={loading}
-                multiline
-                numberOfLines={3}
-                outlineColor="#e2e8f0"
-                activeOutlineColor="#6366f1"
-                className="bg-slate-50"
-                contentStyle={{ color: "#1e293b" }}
-              />
-            </View>
-
-            {/* Frequency Selection */}
-            <View className="mb-8">
-              <Text className="text-sm font-semibold text-slate-700 mb-4">
-                Frequency
-              </Text>
-              <SegmentedButtons
-                value={frequency}
-                onValueChange={(value) => setFrequency(value as Frequency)}
-                buttons={FREQUENCIES.map((freq) => ({
-                  value: freq,
-                  label: freq.charAt(0).toUpperCase() + freq.slice(1),
-                  style: {
-                    borderColor: frequency === freq ? "#6366f1" : "#e2e8f0",
-                    backgroundColor: frequency === freq ? "#eef2ff" : "white",
-                  },
-                  labelStyle: {
-                    color: frequency === freq ? "#6366f1" : "#64748b",
-                    fontWeight: frequency === freq ? "600" : "400",
-                  },
-                }))}
-                style={{
-                  backgroundColor: "transparent",
-                }}
-              />
-            </View>
-
-            {/* Submit Button */}
-            <Button
-              mode="contained"
-              onPress={handleSubmit}
-              disabled={!title.trim() || !description.trim() || loading}
-              loading={loading}
-              className="bg-indigo-600 py-2"
-              contentStyle={{ paddingVertical: 8 }}
-              labelStyle={{
-                fontSize: 16,
-                fontWeight: "600",
-                color: "white",
-              }}
-            >
-              {loading ? "Creating Habit..." : "Create Habit"}
-            </Button>
-
-            {/* Error Message */}
-            {error ? (
-              <View className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-                <Text className="text-red-700 text-center font-medium">
-                  {error}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-
-          {/* Helper Text */}
-          <View className="mt-6 px-4">
-            <Text className="text-slate-500 text-sm text-center leading-relaxed">
-              💡 Tip: Start with small, achievable habits that you can easily
-              maintain every day.
+    <LinearGradient colors={["#F8FAFC", "#E2E8F0"]} className="flex-1">
+      <SafeAreaView className="flex-1 p-6">
+        <View className="flex-row items-center mb-6 gap-4">
+          <Plus size={32} color="#8B5CF6" />
+          <View className="flex-1">
+            <Text className="text-3xl font-bold text-slate-800 mb-1">
+              Create New Habit
+            </Text>
+            <Text className="text-base text-slate-500">
+              Build a better version of yourself
             </Text>
           </View>
+          <TouchableOpacity
+            className="p-2 bg-white rounded-lg border border-slate-200"
+            onPress={handleSignOut}
+          >
+            <LogOut size={20} color="#64748B" />
+          </TouchableOpacity>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+        <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+          <View className="mb-6">
+            <Text className="text-base font-semibold text-slate-800 mb-2">
+              Habit Title <Text className="text-red-500">*</Text>
+            </Text>
+            <TextInput
+              className="bg-white rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-800 min-h-[48px]"
+              placeholder="e.g., Drink 8 glasses of water"
+              placeholderTextColor="#94A3B8"
+              value={title}
+              onChangeText={setTitle}
+              editable={!loading}
+            />
+          </View>
+
+          <View className="mb-6">
+            <Text className="text-base font-semibold text-slate-800 mb-2">
+              Description <Text className="text-red-500">*</Text>
+            </Text>
+            <TextInput
+              className="bg-white rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-800 min-h-[100px]"
+              style={{ textAlignVertical: "top" }}
+              placeholder="Describe your habit and why it's important to you"
+              placeholderTextColor="#94A3B8"
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={4}
+              editable={!loading}
+            />
+          </View>
+
+          <View className="mb-6">
+            <Text className="text-base font-semibold text-slate-800 mb-2">
+              Frequency
+            </Text>
+            <View className="flex-row gap-3">
+              {frequencyOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  className={`flex-1 bg-white rounded-xl border py-4 items-center ${
+                    frequency === option.value
+                      ? "bg-violet-50 border-violet-500"
+                      : "border-slate-200"
+                  }`}
+                  onPress={() => setFrequency(option.value)}
+                  disabled={loading}
+                >
+                  <Text
+                    className={`text-base font-medium ${
+                      frequency === option.value
+                        ? "text-violet-600 font-semibold"
+                        : "text-slate-500"
+                    }`}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <TouchableOpacity
+            className={`rounded-2xl overflow-hidden mb-6 ${
+              loading ? "opacity-60" : "shadow-lg"
+            }`}
+            style={
+              Platform.OS !== "web"
+                ? {
+                    shadowColor: "#8B5CF6",
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: loading ? 0.1 : 0.3,
+                    shadowRadius: 12,
+                    elevation: loading ? 2 : 5,
+                  }
+                : {}
+            }
+            onPress={handleSubmit}
+            disabled={!title.trim() || !description.trim() || loading}
+          >
+            <LinearGradient
+              colors={loading ? ["#94A3B8", "#94A3B8"] : ["#8B5CF6", "#A855F7"]}
+              className="py-4 px-8 items-center"
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text className="text-lg font-semibold text-white">
+                  Create Habit
+                </Text>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {error ? (
+            <View className="bg-red-50 p-4 rounded-xl mb-6 border border-red-200">
+              <Text className="text-sm font-medium text-red-700 text-center">
+                {error}
+              </Text>
+            </View>
+          ) : null}
+
+          <View className="flex-row bg-yellow-50 p-4 rounded-xl items-start gap-3 mb-6 border border-yellow-200">
+            <Text className="text-xl">💡</Text>
+            <View className="flex-1">
+              <Text className="text-sm font-medium text-yellow-800 leading-5">
+                Tip: Start with small, achievable habits that you can easily
+                maintain every day.
+              </Text>
+            </View>
+          </View>
+
+          <View
+            className="bg-white p-5 rounded-2xl mb-4 shadow-sm"
+            style={
+              Platform.OS !== "web"
+                ? {
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 8,
+                    elevation: 3,
+                  }
+                : {}
+            }
+          >
+            <Text className="text-lg font-semibold text-slate-800 mb-4">
+              Popular Habit Ideas
+            </Text>
+            <View className="gap-3">
+              <View className="flex-row items-center gap-3">
+                <Text className="text-xl">💧</Text>
+                <Text className="text-sm text-slate-500 flex-1">
+                  Drink 8 glasses of water daily
+                </Text>
+              </View>
+              <View className="flex-row items-center gap-3">
+                <Text className="text-xl">📚</Text>
+                <Text className="text-sm text-slate-500 flex-1">
+                  Read for 20 minutes before bed
+                </Text>
+              </View>
+              <View className="flex-row items-center gap-3">
+                <Text className="text-xl">🏃‍♂️</Text>
+                <Text className="text-sm text-slate-500 flex-1">
+                  Take a 30-minute walk
+                </Text>
+              </View>
+              <View className="flex-row items-center gap-3">
+                <Text className="text-xl">🧘‍♀️</Text>
+                <Text className="text-sm text-slate-500 flex-1">
+                  Meditate for 10 minutes
+                </Text>
+              </View>
+              <View className="flex-row items-center gap-3">
+                <Text className="text-xl">📱</Text>
+                <Text className="text-sm text-slate-500 flex-1">
+                  No phone 1 hour before sleep
+                </Text>
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }

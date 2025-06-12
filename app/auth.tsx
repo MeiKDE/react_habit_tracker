@@ -1,9 +1,17 @@
 import { useAuth } from "@/lib/auth-context";
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, View, ScrollView } from "react-native";
-import { Button, Text, TextInput, useTheme } from "react-native-paper";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Mail, User, Lock, ArrowLeft } from "lucide-react-native";
 
 export default function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState<boolean>(false);
@@ -12,9 +20,7 @@ export default function AuthScreen() {
   const [password, setPassword] = useState<string>("");
   const [error, setError] = useState<string>("");
 
-  const theme = useTheme();
   const router = useRouter();
-
   const { signIn, signUp, clearSessions } = useAuth();
 
   const handleAuth = async () => {
@@ -61,107 +67,91 @@ export default function AuthScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1 bg-gradient-to-br from-indigo-50 via-white to-purple-50"
-    >
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ flexGrow: 1 }}
-        showsVerticalScrollIndicator={false}
-      >
-        <View className="flex-1 px-6 py-12 justify-center">
-          {/* Header Section */}
-          <View className="items-center mb-12">
-            <View className="w-20 h-20 bg-indigo-100 rounded-2xl justify-center items-center mb-6">
-              <MaterialCommunityIcons
-                name="star-shooting-outline"
-                size={24}
-                color="black"
-              />
+    <LinearGradient colors={["#F8FAFC", "#E2E8F0"]} className="flex-1">
+      <SafeAreaView className="flex-1 p-6">
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <TouchableOpacity
+            className="self-start p-2 mb-4"
+            onPress={() => router.back()}
+          >
+            <ArrowLeft size={24} color="#64748B" />
+          </TouchableOpacity>
+
+          <View className="items-center mb-10">
+            <View className="w-16 h-16 bg-slate-100 rounded-[20px] justify-center items-center mb-6 shadow-sm">
+              <Text className="text-[28px]">✨</Text>
             </View>
-            <Text
-              variant="headlineLarge"
-              className="font-bold text-slate-800 mb-2"
-            >
+            <Text className="text-[28px] font-bold text-slate-800 mb-2">
               {isSignUp ? "Create Account" : "Welcome Back"}
             </Text>
-            <Text className="text-slate-500 text-center px-4 leading-relaxed">
+            <Text className="text-base text-slate-500 text-center">
               {isSignUp
                 ? "Start your journey to building better habits"
                 : "Sign in to continue tracking your habits"}
             </Text>
           </View>
 
-          {/* Main Form Card */}
-          <View className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
-            {/* Form Fields */}
-            <View className="space-y-4">
-              {/* Email Input */}
-              <View>
-                <Text className="text-sm font-semibold text-slate-700 mb-2">
-                  Email Address
-                </Text>
+          <View className="gap-6 mb-8">
+            {/* Email Input */}
+            <View className="gap-2">
+              <Text className="text-sm font-medium text-gray-700">
+                Email Address
+              </Text>
+              <View className="flex-row items-center bg-white rounded-xl border border-slate-200 px-4 py-1">
+                <Mail size={20} color="#64748B" className="mr-3" />
                 <TextInput
-                  placeholder="Enter your email"
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  mode="outlined"
+                  className="flex-1 text-base text-slate-800 py-3"
+                  placeholder={isSignUp ? "Enter your email" : "me@gmail.com"}
+                  placeholderTextColor="#94A3B8"
                   value={email}
                   onChangeText={setEmail}
-                  outlineColor="#e2e8f0"
-                  activeOutlineColor="#6366f1"
-                  className="bg-slate-50"
-                  contentStyle={{ color: "#1e293b" }}
-                  left={<TextInput.Icon icon="email" />}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
                 />
               </View>
+            </View>
 
-              {/* Username Input (only for signup) */}
-              {isSignUp ? (
-                <View>
-                  <Text className="text-sm font-semibold text-slate-700 mb-2">
-                    Username
-                  </Text>
+            {/* Username Input (only for signup) */}
+            {isSignUp && (
+              <View className="gap-2">
+                <Text className="text-sm font-medium text-gray-700">
+                  Username
+                </Text>
+                <View className="flex-row items-center bg-white rounded-xl border border-slate-200 px-4 py-1">
+                  <User size={20} color="#64748B" className="mr-3" />
                   <TextInput
+                    className="flex-1 text-base text-slate-800 py-3"
                     placeholder="Choose a username"
-                    autoCapitalize="none"
-                    mode="outlined"
+                    placeholderTextColor="#94A3B8"
                     value={username}
                     onChangeText={setUsername}
-                    outlineColor="#e2e8f0"
-                    activeOutlineColor="#6366f1"
-                    className="bg-slate-50"
-                    contentStyle={{ color: "#1e293b" }}
-                    left={<TextInput.Icon icon="account" />}
+                    autoCapitalize="none"
                   />
                 </View>
-              ) : null}
+              </View>
+            )}
 
-              {/* Password Input */}
-              <View>
-                <Text className="text-sm font-semibold text-slate-700 mb-2">
-                  Password
-                </Text>
+            {/* Password Input */}
+            <View className="gap-2">
+              <Text className="text-sm font-medium text-gray-700">
+                Password
+              </Text>
+              <View className="flex-row items-center bg-white rounded-xl border border-slate-200 px-4 py-1">
+                <Lock size={20} color="#64748B" className="mr-3" />
                 <TextInput
-                  placeholder="Enter your password"
-                  autoCapitalize="none"
-                  mode="outlined"
-                  secureTextEntry
+                  className="flex-1 text-base text-slate-800 py-3"
+                  placeholder={isSignUp ? "Enter your password" : "••••••••"}
+                  placeholderTextColor="#94A3B8"
                   value={password}
                   onChangeText={setPassword}
-                  outlineColor="#e2e8f0"
-                  activeOutlineColor="#6366f1"
-                  className="bg-slate-50"
-                  contentStyle={{ color: "#1e293b" }}
-                  left={<TextInput.Icon icon="lock" />}
+                  secureTextEntry
                 />
               </View>
             </View>
 
             {/* Error Message */}
             {error ? (
-              <View className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <View className="p-4 bg-red-50 border border-red-200 rounded-xl">
                 <Text className="text-red-700 text-center font-medium">
                   {error}
                 </Text>
@@ -169,56 +159,34 @@ export default function AuthScreen() {
             ) : null}
 
             {/* Submit Button */}
-            <Button
-              mode="contained"
+            <TouchableOpacity
+              className="rounded-xl overflow-hidden mt-2 shadow-lg shadow-purple-600/30"
               onPress={handleAuth}
-              className="mt-6 bg-indigo-600 py-2"
-              contentStyle={{ paddingVertical: 8 }}
-              labelStyle={{
-                fontSize: 16,
-                fontWeight: "600",
-                color: "white",
-              }}
             >
-              {isSignUp ? "Create Account" : "Sign In"}
-            </Button>
+              <LinearGradient
+                colors={["#8B5CF6", "#A855F7"]}
+                className="py-4 px-8 items-center"
+              >
+                <Text className="text-base font-semibold text-white">
+                  {isSignUp ? "Create Account" : "Sign In"}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
 
             {/* Switch Mode Button */}
-            <Button
-              mode="text"
+            <TouchableOpacity
+              className="py-3 items-center"
               onPress={handleSwitchMode}
-              className="mt-4"
-              textColor="#6366f1"
             >
-              {isSignUp
-                ? "Already have an account? Sign In"
-                : "Don't have an account? Sign Up"}
-            </Button>
+              <Text className="text-base font-medium text-purple-600">
+                {isSignUp
+                  ? "Already have an account? Sign In"
+                  : "Don't have an account? Sign Up"}
+              </Text>
+            </TouchableOpacity>
           </View>
-
-          {/* Info Card */}
-          <View className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-100">
-            <View className="flex-row items-start">
-              <View className="w-8 h-8 bg-blue-100 rounded-full justify-center items-center mr-3 mt-0.5">
-                <MaterialCommunityIcons
-                  name="information"
-                  size={16}
-                  color="#3b82f6"
-                />
-              </View>
-              <View className="flex-1">
-                <Text className="font-semibold text-blue-800 mb-1">
-                  Remote Storage
-                </Text>
-                <Text className="text-blue-700 text-sm leading-relaxed">
-                  Your habit data is securely stored on our remote servers and
-                  synced across all your devices.
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }

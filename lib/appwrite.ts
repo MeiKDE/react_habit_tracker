@@ -45,7 +45,7 @@ export const CONFIG = {
 // Helper function for logging (only in development)
 export const log = (message: string, ...args: any[]): void => {
   if (__DEV__) {
-    console.log(`[Appwrite] ${message}`, ...args);
+    // console.log(`[Appwrite] ${message}`, ...args);
   }
 };
 

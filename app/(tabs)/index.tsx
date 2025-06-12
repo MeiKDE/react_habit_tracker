@@ -1,10 +1,12 @@
 import { useAuth } from "@/lib/auth-context";
 import { useHabits } from "@/lib/habits-context";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LogOut, CheckCircle, Circle, Trash2 } from "lucide-react-native";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { ScrollView, View } from "react-native";
+import { ScrollView, View, Platform, TouchableOpacity } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { Button, Surface, Text } from "react-native-paper";
+import { LinearGradient } from "expo-linear-gradient";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Index() {
   const { signOut, user } = useAuth();
@@ -90,56 +92,145 @@ export default function Index() {
     //checks if the array completedHabits already contains the given id
     completedHabits?.includes(habitId);
 
-  //Swipe from right
+  //Swipe from right (native only)
   const renderRightActions = (habitId: string) => (
-    <View className="justify-center items-end flex-1 bg-emerald-500 rounded-2xl mb-3 mt-1 pr-6">
+    <View className="justify-center items-end flex-1 bg-emerald-500 rounded-2xl mb-4 pr-6">
       {isHabitCompleted(habitId) ? (
         <View className="items-center">
-          <MaterialCommunityIcons name="check-circle" size={28} color="#fff" />
+          <CheckCircle size={28} color="#fff" />
           <Text className="text-white text-xs font-medium mt-1">
             Completed!
           </Text>
         </View>
       ) : (
         <View className="items-center">
-          <MaterialCommunityIcons
-            name="check-circle-outline"
-            size={28}
-            color="#fff"
-          />
+          <Circle size={28} color="#fff" />
           <Text className="text-white text-xs font-medium mt-1">Complete</Text>
         </View>
       )}
     </View>
   );
 
-  //Swipe from left
+  //Swipe from left (native only)
   const renderLeftActions = () => (
-    <View className="justify-center items-start flex-1 bg-red-500 rounded-2xl mb-3 mt-1 pl-6">
+    <View className="justify-center items-start flex-1 bg-red-500 rounded-2xl mb-4 pl-6">
       <View className="items-center">
-        <MaterialCommunityIcons
-          name="trash-can-outline"
-          size={28}
-          color="#fff"
-        />
+        <Trash2 size={28} color="#fff" />
         <Text className="text-white text-xs font-medium mt-1">Delete</Text>
       </View>
     </View>
   );
 
-  return (
-    <View className="flex-1 bg-gradient-to-br from-slate-50 to-gray-100">
-      {/* Header */}
-      <View className="px-6 pt-4 pb-6 bg-white shadow-sm border-b border-gray-100">
-        <View className="flex-row justify-between items-center">
-          <View>
+  // Calculate progress
+  const completedCount = completedHabits?.length || 0;
+  const totalCount = habits?.length || 0;
+
+  // Habit Card Component - optimized for both web and native
+  const HabitCard = ({ habit }: { habit: any }) => {
+    const streakData = getHabitStreak(habit);
+    const isCompleted = isHabitCompleted(habit.$id);
+
+    const cardContent = (
+      <TouchableOpacity
+        className={`rounded-2xl mb-4 shadow-sm ${
+          isCompleted ? "bg-green-50 border border-green-200" : "bg-white"
+        }`}
+        onPress={() => handleCompleteHabit(habit.$id)}
+      >
+        <View className="flex-row items-center p-5">
+          <View className="mr-4">
+            {isCompleted ? (
+              <CheckCircle size={24} color="#10B981" />
+            ) : (
+              <Circle size={24} color="#94A3B8" />
+            )}
+          </View>
+          <View className="flex-1">
             <Text
-              variant="headlineMedium"
-              className="font-bold text-slate-800 mb-1"
+              className={`text-lg font-semibold mb-1 ${
+                isCompleted ? "text-emerald-700" : "text-slate-800"
+              }`}
             >
+              {habit.title}
+            </Text>
+            {habit.description && (
+              <Text
+                className={`text-sm mb-2 leading-5 ${
+                  isCompleted ? "text-emerald-600" : "text-slate-500"
+                }`}
+              >
+                {habit.description}
+              </Text>
+            )}
+            <View className="flex-row items-center gap-3">
+              <Text className="text-xs font-medium text-violet-500 bg-indigo-50 px-2 py-1 rounded">
+                {getFrequencyLabel(habit.frequency)}
+              </Text>
+              <Text className="text-xs font-medium text-red-600">
+                🔥 {streakData.streak} day streak
+              </Text>
+            </View>
+          </View>
+          <View className="flex-row items-center gap-2">
+            {isCompleted && (
+              <View className="bg-green-100 px-2 py-1 rounded">
+                <Text className="text-xs font-semibold text-emerald-700">
+                  {streakData.total} total
+                </Text>
+              </View>
+            )}
+            {Platform.OS === "web" && (
+              <TouchableOpacity
+                onPress={() => handleDeleteHabit(habit.$id)}
+                className="p-2 bg-red-50 rounded-lg ml-2"
+              >
+                <Trash2 size={16} color="#dc2626" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+
+    // On native platforms, wrap with Swipeable for gesture support
+    if (Platform.OS !== "web") {
+      return (
+        <Swipeable
+          key={habit.$id}
+          ref={(ref) => {
+            swipeableRefs.current[habit.$id] = ref;
+          }}
+          renderRightActions={() => renderRightActions(habit.$id)}
+          renderLeftActions={renderLeftActions}
+          onSwipeableOpen={(direction) => {
+            if (direction === "right") {
+              handleCompleteHabit(habit.$id);
+              swipeableRefs.current[habit.$id]?.close();
+            } else if (direction === "left") {
+              handleDeleteHabit(habit.$id);
+            }
+          }}
+          useNativeAnimations={true}
+        >
+          {cardContent}
+        </Swipeable>
+      );
+    }
+
+    // On web, return the card without Swipeable wrapper
+    return cardContent;
+  };
+
+  return (
+    <LinearGradient colors={["#F8FAFC", "#E2E8F0"]} className="flex-1">
+      <SafeAreaView className="flex-1 px-6">
+        {/* Header */}
+        <View className="flex-row justify-between items-start mb-6">
+          <View>
+            <Text className="text-3xl font-bold text-slate-800 mb-1">
               Today&apos;s Habits
             </Text>
-            <Text className="text-slate-500 text-sm">
+            <Text className="text-base text-slate-500">
               {new Date().toLocaleDateString("en-US", {
                 weekday: "long",
                 year: "numeric",
@@ -148,184 +239,107 @@ export default function Index() {
               })}
             </Text>
           </View>
-          <Button
-            mode="outlined"
+          <TouchableOpacity
             onPress={signOut}
-            icon="logout"
-            className="border-slate-200"
-            textColor="#64748b"
+            className="flex-row items-center gap-2 bg-white py-2 px-3 rounded-lg border border-slate-200"
           >
-            Sign Out
-          </Button>
+            <LogOut size={20} color="#64748B" />
+            <Text className="text-sm font-medium text-slate-500">Sign Out</Text>
+          </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Error State */}
-      {error && (
-        <View className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-          <Text className="text-red-700 font-medium mb-2">{error}</Text>
-          <Button
-            mode="text"
-            onPress={refreshHabits}
-            textColor="#dc2626"
-            className="self-start -ml-2"
-          >
-            Try Again
-          </Button>
+        {/* Progress Card */}
+        <View className="bg-white p-5 rounded-2xl mb-6 shadow-sm">
+          <View className="flex-row justify-between items-center mb-3">
+            <Text className="text-lg font-semibold text-slate-800">
+              Daily Progress
+            </Text>
+            <Text className="text-lg font-bold text-violet-500">
+              {completedCount}/{totalCount}
+            </Text>
+          </View>
+          <View className="h-2 bg-slate-100 rounded-full mb-3 overflow-hidden">
+            <View
+              className="h-full bg-emerald-500 rounded-full"
+              style={{
+                width:
+                  totalCount > 0
+                    ? `${(completedCount / totalCount) * 100}%`
+                    : "0%",
+              }}
+            />
+          </View>
+          <Text className="text-sm font-medium text-slate-500 text-center">
+            {completedCount === totalCount && totalCount > 0
+              ? "🎉 All habits completed today!"
+              : `${totalCount - completedCount} habits remaining`}
+          </Text>
         </View>
-      )}
 
-      {/* Content */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        className="flex-1 px-6"
-        contentContainerStyle={{ paddingTop: 24, paddingBottom: 24 }}
-      >
-        {isLoading ? (
-          <View className="flex-1 justify-center items-center py-20">
-            <View className="items-center">
-              <View className="w-12 h-12 bg-indigo-100 rounded-full justify-center items-center mb-4">
-                <MaterialCommunityIcons
-                  name="loading"
-                  size={24}
-                  color="#6366f1"
-                />
-              </View>
-              <Text className="text-slate-600 font-medium">
-                Loading your habits...
-              </Text>
-            </View>
-          </View>
-        ) : habits?.length === 0 ? (
-          <View className="flex-1 justify-center items-center py-20">
-            <View className="items-center">
-              <View className="w-16 h-16 bg-indigo-100 rounded-full justify-center items-center mb-6">
-                <MaterialCommunityIcons
-                  name="plus-circle-outline"
-                  size={32}
-                  color="#6366f1"
-                />
-              </View>
-              <Text className="text-xl font-semibold text-slate-800 mb-2">
-                No habits yet
-              </Text>
-              <Text className="text-slate-500 text-center px-8">
-                Create your first habit to start building better routines
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <View>
-            {/* Habits List */}
-            {habits?.map((habit) => {
-              const streakData = getHabitStreak(habit);
-              const isCompleted = isHabitCompleted(habit.$id);
-
-              return (
-                <Swipeable
-                  key={habit.$id}
-                  ref={(ref) => {
-                    swipeableRefs.current[habit.$id] = ref;
-                  }}
-                  renderRightActions={() => renderRightActions(habit.$id)}
-                  renderLeftActions={renderLeftActions}
-                  onSwipeableOpen={(direction) => {
-                    if (direction === "right") {
-                      handleCompleteHabit(habit.$id);
-                      // Close the swipeable after completing
-                      swipeableRefs.current[habit.$id]?.close();
-                    } else if (direction === "left") {
-                      handleDeleteHabit(habit.$id);
-                    }
-                  }}
-                >
-                  <Surface
-                    className={`p-5 rounded-2xl mb-3 mt-1 border ${
-                      isCompleted
-                        ? "bg-emerald-50 border-emerald-200"
-                        : "bg-white border-gray-100"
-                    }`}
-                    elevation={isCompleted ? 0 : 1}
-                  >
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-1 mr-4">
-                        <View className="flex-row items-center mb-2">
-                          <View
-                            className="w-4 h-4 rounded-full mr-3"
-                            style={{ backgroundColor: habit.color }}
-                          />
-                          <Text
-                            variant="titleMedium"
-                            className={`font-semibold flex-1 ${
-                              isCompleted
-                                ? "text-emerald-700"
-                                : "text-slate-800"
-                            }`}
-                          >
-                            {habit.title}
-                          </Text>
-                          {isCompleted && (
-                            <MaterialCommunityIcons
-                              name="check-circle"
-                              size={20}
-                              color="#059669"
-                            />
-                          )}
-                        </View>
-
-                        <View className="flex-row items-center justify-between">
-                          <Text
-                            className={`text-sm ${
-                              isCompleted
-                                ? "text-emerald-600"
-                                : "text-slate-500"
-                            }`}
-                          >
-                            {getFrequencyLabel(habit.frequency)} •{" "}
-                            {streakData.streak} day streak
-                          </Text>
-                          <Text
-                            className={`text-xs font-medium px-2 py-1 rounded-full ${
-                              isCompleted
-                                ? "bg-emerald-100 text-emerald-700"
-                                : "bg-slate-100 text-slate-600"
-                            }`}
-                          >
-                            {streakData.total} total
-                          </Text>
-                        </View>
-
-                        {habit.description && (
-                          <Text
-                            className={`text-sm mt-2 ${
-                              isCompleted
-                                ? "text-emerald-600"
-                                : "text-slate-500"
-                            }`}
-                          >
-                            {habit.description}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                  </Surface>
-                </Swipeable>
-              );
-            })}
-
-            {/* Usage Instructions */}
-            <View className="mt-8 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
-              <Text className="text-indigo-700 font-medium mb-2">
-                Quick Actions
-              </Text>
-              <Text className="text-indigo-600 text-sm leading-relaxed">
-                Swipe right on a habit to mark it as complete, or swipe left to
-                delete it.
-              </Text>
-            </View>
+        {/* Error State */}
+        {error && (
+          <View className="p-4 bg-red-50 border border-red-200 rounded-xl mb-6">
+            <Text className="text-red-700 font-medium mb-2">{error}</Text>
+            <Button
+              mode="text"
+              onPress={refreshHabits}
+              textColor="#dc2626"
+              className="self-start -ml-2"
+            >
+              Try Again
+            </Button>
           </View>
         )}
-      </ScrollView>
-    </View>
+
+        {/* Content */}
+        <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+          {isLoading ? (
+            <View className="flex-1 justify-center items-center py-20">
+              <View className="items-center">
+                <View className="w-12 h-12 bg-indigo-100 rounded-full justify-center items-center mb-4">
+                  <Circle size={24} color="#6366f1" />
+                </View>
+                <Text className="text-slate-600 font-medium">
+                  Loading your habits...
+                </Text>
+              </View>
+            </View>
+          ) : habits?.length === 0 ? (
+            <View className="flex-1 justify-center items-center py-20">
+              <View className="items-center">
+                <View className="w-16 h-16 bg-indigo-100 rounded-full justify-center items-center mb-6">
+                  <Circle size={32} color="#6366f1" />
+                </View>
+                <Text className="text-xl font-semibold text-slate-800 mb-2">
+                  No habits yet
+                </Text>
+                <Text className="text-slate-500 text-center px-8">
+                  Create your first habit to start building better routines
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View>
+              {/* Habits List */}
+              {habits?.map((habit) => (
+                <HabitCard key={habit.$id} habit={habit} />
+              ))}
+
+              {/* Usage Instructions */}
+              <View className="bg-indigo-50 p-4 rounded-xl mt-4 border border-indigo-200">
+                <Text className="text-sm font-semibold text-slate-800 mb-1">
+                  Quick Actions
+                </Text>
+                <Text className="text-xs text-slate-500 leading-relaxed">
+                  {Platform.OS === "web"
+                    ? "Tap on a habit to mark it as complete, or use the delete button to remove it."
+                    : "Tap on a habit to mark it as complete, or swipe left to delete it."}
+                </Text>
+              </View>
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
