@@ -69,7 +69,7 @@ export default function RootLayout() {
                     <Stack.Screen
                       name="auth"
                       options={{
-                        title: "NextStartAI",
+                        title: "AlphaOmega Tech",
                         headerShown: true,
                         headerStyle: {
                           backgroundColor: "transparent",
