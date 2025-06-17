@@ -11,13 +11,10 @@ const STORAGE_KEYS = {
 type AuthContextType = {
   user: User | null;
   isLoadingUser: boolean;
-  signUp: (
-    email: string,
-    password: string,
-    username: string,
-    name?: string
-  ) => Promise<string | null>;
-  signIn: (email: string, password: string) => Promise<string | null>;
+  signInWithGoogle: (
+    successRedirectUrl?: string,
+    failureRedirectUrl?: string
+  ) => Promise<void>;
   signOut: () => Promise<void>;
   refreshAuth: () => Promise<boolean>;
   clearSessions: () => Promise<void>;
@@ -95,96 +92,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signUp = async (
-    email: string,
-    password: string,
-    username: string,
-    name?: string
+  const signInWithGoogle = async (
+    successRedirectUrl?: string,
+    failureRedirectUrl?: string
   ) => {
     try {
-      console.log("[AUTH] Attempting signup with Appwrite...");
-
-      const result = await AuthService.signUp(email, password, username, name);
-
-      if (result.user) {
-        setUser(result.user);
-        // Store user data locally
-        await AsyncStorage.setItem(
-          STORAGE_KEYS.USER,
-          JSON.stringify(result.user)
-        );
-        console.log("[AUTH] Signup successful");
-        return null;
-      }
-
-      console.error("[AUTH] Signup failed: No user returned");
-      return "Failed to create account";
-    } catch (error: any) {
-      console.error("[AUTH] Signup error:", error);
-
-      // Provide more specific error messages
-      if (error.message.includes("user_already_exists")) {
-        return "An account with this email already exists";
-      } else if (error.message.includes("user_invalid_credentials")) {
-        return "Invalid email or password format";
-      } else if (error.message.includes("password")) {
-        return "Password must be at least 8 characters long";
-      } else if (error.message.includes("email")) {
-        return "Please enter a valid email address";
-      } else if (
-        error.message.includes("Creation of a session is prohibited")
-      ) {
-        // Clear sessions and try again
-        await AuthService.clearAllSessions();
-        return "Session conflict detected. Please try again.";
-      }
-
-      return (
-        error.message || "An error occurred during signup. Please try again."
+      await AuthService.signInWithGoogle(
+        successRedirectUrl,
+        failureRedirectUrl
       );
-    }
-  };
-
-  const signIn = async (email: string, password: string) => {
-    try {
-      console.log("[AUTH] Attempting signin with Appwrite...");
-
-      const user = await AuthService.signIn(email, password);
-
-      if (user) {
-        setUser(user);
-        // Store user data locally
-        await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-        console.log("[AUTH] Signin successful");
-        return null;
-      }
-
-      console.error("[AUTH] Signin failed: No user returned");
-      return "Failed to sign in";
+      // The redirect will take over; you may want to handle post-login in a useEffect elsewhere
     } catch (error: any) {
-      console.error("[AUTH] Signin error:", error);
-
-      // Handle session conflicts
-      if (error.message.includes("Creation of a session is prohibited")) {
-        // Clear sessions and try again
-        await AuthService.clearAllSessions();
-        return "Session conflict detected. Please try again.";
-      }
-
-      // Provide more specific error messages
-      if (error.message.includes("user_invalid_credentials")) {
-        return "Invalid email or password";
-      } else if (error.message.includes("user_not_found")) {
-        return "No account found with this email";
-      } else if (error.message.includes("user_blocked")) {
-        return "Account has been blocked. Please contact support.";
-      } else if (error.message.includes("Failed to fetch")) {
-        return "Unable to connect to server. Please check your internet connection.";
-      }
-
-      return (
-        error.message || "An error occurred during sign in. Please try again."
-      );
+      console.error("[AUTH] Google OAuth error:", error);
+      throw error;
     }
   };
 
@@ -253,8 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value: AuthContextType = {
     user,
     isLoadingUser,
-    signUp,
-    signIn,
+    signInWithGoogle,
     signOut,
     refreshAuth,
     clearSessions,

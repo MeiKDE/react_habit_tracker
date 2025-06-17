@@ -12,140 +12,6 @@ import {
 
 // Authentication service using Appwrite for React Native
 export class AuthService {
-  // Sign up a new user
-  static async signUp(
-    email: string,
-    password: string,
-    username: string,
-    name?: string
-  ) {
-    try {
-      log("Attempting to sign up user:", email);
-
-      // Create user account (this automatically creates a session)
-      const user = await account.create(
-        ID.unique(),
-        email,
-        password,
-        name || username
-      );
-
-      log("User account created:", user.$id);
-
-      // Create user document in database
-      const userDoc = await databases.createDocument(
-        DATABASE_ID,
-        COLLECTIONS.USERS,
-        user.$id,
-        {
-          email,
-          username,
-          name: name || username,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }
-      );
-
-      log("User document created in database");
-
-      // Get the current session (created automatically by account.create)
-      const session = await account.getSession("current");
-
-      return {
-        user: userDoc as unknown as User,
-        session,
-      };
-    } catch (error: any) {
-      logError("Sign up failed:", error);
-      throw new Error(error.message || "Failed to sign up");
-    }
-  }
-
-  // Sign in user
-  static async signIn(email: string, password: string): Promise<User> {
-    try {
-      log("Attempting to sign in user", { email });
-
-      // First, check if there's an existing session and clear it to avoid conflicts
-      try {
-        const existingUser = await account.get();
-        log("Found existing session, clearing it first", {
-          existingEmail: existingUser.email,
-        });
-        await account.deleteSession("current");
-        log("Previous session cleared successfully");
-      } catch (error: any) {
-        // No existing session or other error - continue with login
-        if (error.code === 401) {
-          log("No existing session found (normal for fresh login)");
-        } else {
-          log("Warning: Error checking existing session", error);
-        }
-      }
-
-      // Create session (login)
-      const session = await account.createEmailPasswordSession(email, password);
-      log("Session created successfully", { sessionId: session.$id });
-
-      // Get user data
-      const user = await account.get();
-      log("User data retrieved", { userId: user.$id, email: user.email });
-
-      // Update user in users collection if needed
-      await this.updateUserInDatabase(user);
-
-      return {
-        $id: user.$id,
-        email: user.email,
-        username: user.name || email.split("@")[0],
-        name: user.name,
-        createdAt: user.$createdAt,
-        updatedAt: user.$updatedAt,
-      };
-    } catch (error: any) {
-      logError("Sign in failed", error);
-
-      // Handle session conflicts with retry logic
-      if (error.message?.includes("Session conflict") || error.code === 409) {
-        log(
-          "Session conflict detected, attempting to clear all sessions and retry..."
-        );
-
-        try {
-          // Clear all sessions and retry
-          await account.deleteSessions();
-          log("All sessions cleared, retrying sign in...");
-
-          // Retry the login
-          const session = await account.createEmailPasswordSession(
-            email,
-            password
-          );
-          log("Retry sign in successful", { sessionId: session.$id });
-
-          const user = await account.get();
-          await this.updateUserInDatabase(user);
-
-          return {
-            $id: user.$id,
-            email: user.email,
-            username: user.name || email.split("@")[0],
-            name: user.name,
-            createdAt: user.$createdAt,
-            updatedAt: user.$updatedAt,
-          };
-        } catch (retryError: any) {
-          logError("Retry sign in also failed", retryError);
-          throw new Error(
-            "Login failed due to session conflicts. Please try again."
-          );
-        }
-      }
-
-      throw error;
-    }
-  }
-
   // Sign out user
   static async signOut() {
     try {
@@ -175,7 +41,7 @@ export class AuthService {
     try {
       const session = await account.getSession("current");
       return !!(session && session.$id);
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -195,7 +61,7 @@ export class AuthService {
         log("Valid session found, proceeding to get user");
       } catch (sessionError: any) {
         // No session exists - this is normal for unauthenticated users
-        log("No current session - user is not authenticated");
+        log(`No current session - user is not authenticated ${sessionError}`);
         return null;
       }
 
@@ -300,7 +166,7 @@ export class AuthService {
       log("Current session retrieved");
       return session;
     } catch (error) {
-      log("No current session found");
+      log(`No current session found, ${error}`);
       return null;
     }
   }
@@ -365,6 +231,33 @@ export class AuthService {
         logError("Database update failed:", error);
         throw new Error(error.message || "Failed to update user in database");
       }
+    }
+  }
+
+  // Google OAuth login (Expo/React Native)
+  static async signInWithGoogle(
+    successRedirectUrl?: string,
+    failureRedirectUrl?: string
+  ) {
+    // Default redirect URLs for Expo/React Native
+    // You may need to set these in your Appwrite console for OAuth
+    const defaultSuccess =
+      successRedirectUrl || "exp://127.0.0.1:19000/--/oauth-success";
+    const defaultFailure =
+      failureRedirectUrl || "exp://127.0.0.1:19000/--/oauth-failure";
+
+    try {
+      // This will open the browser for Google OAuth
+      await account.createOAuth2Session(
+        "google" as any,
+        defaultSuccess,
+        defaultFailure
+      );
+      // On success, Appwrite will redirect to the success URL
+      // You should handle the redirect in your app (see Expo AuthSession docs)
+    } catch (error: any) {
+      logError("Google OAuth login failed:", error);
+      throw new Error(error.message || "Google OAuth login failed");
     }
   }
 }

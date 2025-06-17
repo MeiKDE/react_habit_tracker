@@ -53,18 +53,6 @@ export interface HabitWithStreak extends Habit {
   streakData: StreakData;
 }
 
-export interface SignUpData {
-  email: string;
-  password: string;
-  username: string;
-  name?: string;
-}
-
-export interface SignInData {
-  email: string;
-  password: string;
-}
-
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;

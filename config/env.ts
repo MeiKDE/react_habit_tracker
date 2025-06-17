@@ -61,14 +61,14 @@ export const ENV_CONFIG = {
   API_URL: getOptionalEnvVar(
     "",
     "EXPO_PUBLIC_API_URL",
-    "http://localhost:8081"
+    "http://localhost:8081/auth"
   ),
 
   // Frontend URL for CORS
   FRONTEND_URL: getOptionalEnvVar(
     "",
     "EXPO_PUBLIC_FRONTEND_URL",
-    "http://localhost:3000"
+    "http://localhost:3000/login"
   ),
 
   // Environment
