@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthService } from "./auth-appwrite";
-import { User } from "./appwrite";
+import { User, account } from "./appwrite";
 
 const STORAGE_KEYS = {
   USER: "@habit_tracker_user",
@@ -44,14 +44,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Try to get current user from Appwrite
-      const currentUser = await AuthService.getCurrentUser();
+      let currentUser = null;
+      try {
+        currentUser = await account.get();
+      } catch (error) {
+        currentUser = null;
+      }
 
       if (currentUser) {
-        setUser(currentUser);
+        const mappedUser: User = {
+          $id: currentUser.$id,
+          email: currentUser.email,
+          username: currentUser.name || currentUser.email.split("@")[0],
+          name: currentUser.name || "",
+          createdAt: currentUser.$createdAt,
+          updatedAt: currentUser.$updatedAt,
+        };
+        setUser(mappedUser);
         // Store user data locally for offline access
         await AsyncStorage.setItem(
           STORAGE_KEYS.USER,
-          JSON.stringify(currentUser)
+          JSON.stringify(mappedUser)
         );
         // console.log("[AUTH] User restored from Appwrite session");
       } else {
@@ -77,9 +90,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (storedUser) {
           const userData = JSON.parse(storedUser);
           // Verify the stored user is still valid by attempting to get current user
-          const validUser = await AuthService.getCurrentUser();
+          const validUser = await account.get();
           if (validUser) {
-            setUser(validUser);
+            const mappedUser: User = {
+              $id: validUser.$id,
+              email: validUser.email,
+              username: validUser.name || validUser.email.split("@")[0],
+              name: validUser.name || "",
+              createdAt: validUser.$createdAt,
+              updatedAt: validUser.$updatedAt,
+            };
+            setUser(mappedUser);
           } else {
             await AsyncStorage.removeItem(STORAGE_KEYS.USER);
           }
@@ -146,13 +167,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log("[AUTH] Refreshing authentication...");
 
-      const currentUser = await AuthService.getCurrentUser();
+      let currentUser = null;
+      try {
+        currentUser = await account.get();
+      } catch (error) {
+        currentUser = null;
+      }
 
       if (currentUser) {
-        setUser(currentUser);
+        const mappedUser: User = {
+          $id: currentUser.$id,
+          email: currentUser.email,
+          username: currentUser.name || currentUser.email.split("@")[0],
+          name: currentUser.name || "",
+          createdAt: currentUser.$createdAt,
+          updatedAt: currentUser.$updatedAt,
+        };
+        setUser(mappedUser);
         await AsyncStorage.setItem(
           STORAGE_KEYS.USER,
-          JSON.stringify(currentUser)
+          JSON.stringify(mappedUser)
         );
         console.log("[AUTH] Auth refresh successful");
         return true;

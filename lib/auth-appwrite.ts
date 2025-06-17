@@ -9,6 +9,9 @@ import {
   log,
   logError,
 } from "./appwrite";
+import { Platform } from "react-native";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
 
 // Authentication service using Appwrite for React Native
 export class AuthService {
@@ -46,118 +49,6 @@ export class AuthService {
     }
   }
 
-  // Get current user
-  static async getCurrentUser() {
-    try {
-      log("Getting current user");
-
-      // First, check if we have a valid session to avoid 401 guest errors
-      try {
-        const session = await account.getSession("current");
-        if (!session || !session.$id) {
-          log("No valid session found");
-          return null;
-        }
-        log("Valid session found, proceeding to get user");
-      } catch (sessionError: any) {
-        // No session exists - this is normal for unauthenticated users
-        log(`No current session - user is not authenticated ${sessionError}`);
-        return null;
-      }
-
-      const user = await account.get();
-
-      if (!user || !user.$id) {
-        log("No valid user found");
-        return null;
-      }
-
-      // Get user document from database
-      const userDoc = await databases.getDocument(
-        DATABASE_ID,
-        COLLECTIONS.USERS,
-        user.$id
-      );
-
-      log("Current user retrieved:", user.$id);
-      return userDoc as unknown as User;
-    } catch (error: any) {
-      // Don't log guest user errors - this is expected when not authenticated
-      if (
-        error.message?.includes("missing scope") ||
-        error.message?.includes("guests") ||
-        error.message?.includes("User (role: guests)")
-      ) {
-        log("User is not authenticated");
-        return null;
-      }
-
-      log("getCurrentUser failed:", error.message);
-      return null;
-    }
-  }
-
-  // Check if username is available
-  static async isUsernameAvailable(username: string) {
-    try {
-      log("Checking username availability:", username);
-      const result = await databases.listDocuments(
-        DATABASE_ID,
-        COLLECTIONS.USERS,
-        [Query.equal("username", username)]
-      );
-
-      const isAvailable = result.documents.length === 0;
-      log("Username availability result:", isAvailable);
-      return isAvailable;
-    } catch (error) {
-      logError("Username check failed:", error);
-      return false;
-    }
-  }
-
-  // Check if email is available
-  static async isEmailAvailable(email: string) {
-    try {
-      log("Checking email availability:", email);
-      const result = await databases.listDocuments(
-        DATABASE_ID,
-        COLLECTIONS.USERS,
-        [Query.equal("email", email)]
-      );
-
-      const isAvailable = result.documents.length === 0;
-      log("Email availability result:", isAvailable);
-      return isAvailable;
-    } catch (error) {
-      logError("Email check failed:", error);
-      return false;
-    }
-  }
-
-  // Update user profile
-  static async updateProfile(userId: string, updates: Partial<User>) {
-    try {
-      log("Updating user profile:", userId);
-
-      const updatedUser = await databases.updateDocument(
-        DATABASE_ID,
-        COLLECTIONS.USERS,
-        userId,
-        {
-          ...updates,
-          updatedAt: new Date().toISOString(),
-        }
-      );
-
-      log("User profile updated successfully");
-      return updatedUser as unknown as User;
-    } catch (error: any) {
-      logError("Profile update failed:", error);
-      throw new Error(error.message || "Failed to update profile");
-    }
-  }
-
   // Get current session
   static async getCurrentSession() {
     try {
@@ -186,78 +77,70 @@ export class AuthService {
     }
   }
 
-  // Update user in database
-  static async updateUserInDatabase(appwriteUser: any) {
-    const userData = {
-      email: appwriteUser.email,
-      username: appwriteUser.name || appwriteUser.email.split("@")[0],
-      name: appwriteUser.name || "",
-      createdAt: appwriteUser.$createdAt,
-      updatedAt: new Date().toISOString(),
-    };
-
-    try {
-      log("Updating user in database:", appwriteUser.$id);
-
-      const updatedUser = await databases.updateDocument(
-        DATABASE_ID,
-        COLLECTIONS.USERS,
-        appwriteUser.$id,
-        userData
-      );
-
-      log("User updated in database successfully");
-      return updatedUser as unknown as User;
-    } catch (error: any) {
-      if (error.code === 404) {
-        // User doesn't exist in database, create them
-        log("User not found in database, creating new user record");
-        try {
-          const newUser = await databases.createDocument(
-            DATABASE_ID,
-            COLLECTIONS.USERS,
-            appwriteUser.$id,
-            userData
-          );
-          log("User created in database successfully");
-          return newUser as unknown as User;
-        } catch (createError: any) {
-          logError("Failed to create user in database:", createError);
-          throw new Error(
-            createError.message || "Failed to create user in database"
-          );
-        }
-      } else {
-        logError("Database update failed:", error);
-        throw new Error(error.message || "Failed to update user in database");
-      }
-    }
-  }
-
   // Google OAuth login (Expo/React Native)
   static async signInWithGoogle(
     successRedirectUrl?: string,
     failureRedirectUrl?: string
   ) {
-    // Default redirect URLs for Expo/React Native
-    // You may need to set these in your Appwrite console for OAuth
-    const defaultSuccess =
-      successRedirectUrl || "exp://127.0.0.1:19000/--/oauth-success";
-    const defaultFailure =
-      failureRedirectUrl || "exp://127.0.0.1:19000/--/oauth-failure";
-
     try {
-      // This will open the browser for Google OAuth
-      await account.createOAuth2Session(
-        "google" as any,
-        defaultSuccess,
-        defaultFailure
-      );
-      // On success, Appwrite will redirect to the success URL
-      // You should handle the redirect in your app (see Expo AuthSession docs)
+      // Create a redirect URI for Expo/React Native
+      const redirectUri = Linking.createURL("/");
+      log("Platform:", Platform.OS);
+      log("Redirect URI:", redirectUri);
+
+      if (Platform.OS === "web") {
+        // Use createOAuth2Session for web
+        const response = await account.createOAuth2Session(
+          "google" as any,
+          redirectUri,
+          redirectUri
+        );
+        if (!response) throw new Error("Failed to create OAuth2 session");
+        // For web, session is automatically created
+        const currentSession = await account.getSession("current");
+        if (!currentSession) {
+          throw new Error("No session found after OAuth authentication");
+        }
+        return currentSession;
+      } else {
+        // Use createOAuth2Token for android and ios
+        const response = await account.createOAuth2Token(
+          "google" as any,
+          redirectUri
+        );
+        if (!response) throw new Error("Create OAuth2 token failed");
+
+        const browserResult = await WebBrowser.openAuthSessionAsync(
+          response.toString(),
+          redirectUri
+        );
+
+        if (browserResult.type !== "success") {
+          throw new Error("OAuth authentication was cancelled or failed");
+        }
+
+        log("Browser Result: ", browserResult);
+
+        const url = new URL(browserResult.url);
+        const secret = url.searchParams.get("secret")?.toString();
+        const userId = url.searchParams.get("userId")?.toString();
+        if (!secret || !userId) throw new Error("Create OAuth2 token failed");
+
+        // Create session manually using userId and secret
+        await account.createSession(userId, secret);
+
+        // Return the newly created session
+        const currentSession = await account.getSession("current");
+        if (!currentSession) {
+          throw new Error(
+            "Failed to create session after OAuth authentication"
+          );
+        }
+        return currentSession;
+      }
     } catch (error: any) {
       logError("Google OAuth login failed:", error);
-      throw new Error(error.message || "Google OAuth login failed");
+      return null;
     }
   }
 }

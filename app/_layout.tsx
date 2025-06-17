@@ -10,10 +10,11 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import "../global.css";
+import { AppState } from "react-native";
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, isLoadingUser } = useAuth();
+  const { user, isLoadingUser, refreshAuth } = useAuth();
   const segments = useSegments();
 
   useEffect(() => {
@@ -25,6 +26,16 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
       router.replace("/");
     }
   }, [user, segments, isLoadingUser, router]);
+
+  // AppState listener to refresh auth when app becomes active
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        refreshAuth();
+      }
+    });
+    return () => subscription.remove();
+  }, [refreshAuth]);
 
   return <>{children}</>;
 }
